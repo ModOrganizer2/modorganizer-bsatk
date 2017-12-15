@@ -30,8 +30,19 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #ifdef WIN32
 #include <Windows.h>
 
+typedef unsigned short BSAUShort;
+typedef unsigned int BSAUInt;
 typedef unsigned long BSAULong;
 typedef UINT64 BSAHash;
+
+enum ArchiveType {
+  TYPE_OBLIVION,
+  TYPE_FALLOUT3,
+  TYPE_FALLOUTNV = TYPE_FALLOUT3,
+  TYPE_SKYRIM = TYPE_FALLOUT3,
+  TYPE_SKYRIMSE,
+  TYPE_FALLOUT4
+};
 
 #else // WIN32
 

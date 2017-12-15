@@ -19,6 +19,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
 #include <limits.h>
+#include <filesystem>
 
 #include "bsafolder.h"
 #include "bsafile.h"
@@ -40,8 +41,7 @@ Folder::Folder()
 }
 
 
-Folder::Ptr Folder::readFolder(std::fstream &file, BSAULong fileNamesLength,
-                               BSAULong &endPos)
+Folder::Ptr Folder::readFolder(std::fstream &file, BSAUInt fileNamesLength, BSAUInt &endPos)
 {
   Folder::Ptr result(new Folder());
   result->m_NameHash = readType<BSAHash>(file);
@@ -66,6 +66,31 @@ Folder::Ptr Folder::readFolder(std::fstream &file, BSAULong fileNamesLength,
   return result;
 }
 
+Folder::Ptr Folder::readFolderSE(std::fstream &file, BSAUInt fileNamesLength, BSAUInt &endPos)
+{
+  Folder::Ptr result(new Folder());
+  result->m_NameHash = readType<BSAHash>(file);
+  result->m_FileCount = readType<BSAUInt>(file);
+  readType<BSAUInt>(file);
+  result->m_Offset = readType<BSAHash>(file);
+  std::streamoff pos = file.tellg();
+
+  file.seekg(result->m_Offset - fileNamesLength, fstream::beg);
+
+  result->m_Name = readBString(file);
+
+  for (unsigned long i = 0UL; i < result->m_FileCount; ++i) {
+    result->m_Files.push_back(File::Ptr(new File(file, result.get())));
+  }
+
+  if (static_cast<unsigned long>(file.tellg()) > endPos) {
+    endPos = static_cast<BSAULong>(file.tellg());
+  }
+
+  file.seekg(pos);
+
+  return result;
+}
 
 void Folder::writeHeader(std::fstream &file) const
 {
@@ -153,14 +178,35 @@ void Folder::addFolderInt(Folder::Ptr folder)
 }
 
 
-Folder::Ptr Folder::addFolder(std::fstream &file, BSAULong fileNamesLength, BSAULong &endPos)
+Folder::Ptr Folder::addFolder(std::fstream &file, BSAUInt fileNamesLength, BSAUInt &endPos, ArchiveType type)
 {
-  Folder::Ptr temp = readFolder(file, fileNamesLength, endPos);
+  Folder::Ptr temp;
+  if (type == ArchiveType::TYPE_SKYRIMSE)
+    temp = readFolderSE(file, fileNamesLength, endPos);
+  else
+    temp = readFolder(file, fileNamesLength, endPos);
   addFolderInt(temp);
 
   return temp;
 }
 
+Folder::Ptr Folder::addFolderFromFile(char * filePath)
+{
+  std::experimental::filesystem::path file(filePath);
+
+  file.parent_path();
+
+  Folder::Ptr result(new Folder());
+  result->m_NameHash = calculateBSAHash(filePath);
+  result->m_FileCount = 1;
+  result->m_Name = file.parent_path().string();
+
+  result->m_Files.push_back(File::Ptr(new File(file.filename().string(), "", result.get(), false)));
+
+  addFolderInt(result);
+
+  return result;
+}
 
 bool Folder::resolveFileNames(std::fstream &file, bool testHashes)
 {

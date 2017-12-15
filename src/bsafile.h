@@ -72,6 +72,7 @@ private:
    * construct file from source archive
    * @param file a file read from
    * @param folder the folder to add the file to
+   * @param type the archive type we're parsing
    */
   File(std::fstream &file, Folder *folder);
 

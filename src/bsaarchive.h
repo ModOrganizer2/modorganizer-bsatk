@@ -55,13 +55,6 @@ class Archive {
 
 public:
 
-  enum EType {
-    TYPE_OBLIVION,
-    TYPE_FALLOUT3,
-    TYPE_FALLOUTNV = TYPE_FALLOUT3,
-    TYPE_SKYRIM = TYPE_FALLOUT3
-  };
-
   typedef std::pair<boost::shared_array<unsigned char>, BSAULong> DataBuffer;
 
 private:
@@ -99,11 +92,11 @@ public:
    * change the archive type
    * @param type new archive type
    */
-  void setType(EType type) { m_Type = type; }
+  void setType(ArchiveType type) { m_Type = type; }
   /**
    * @return type of the archive (supported game)
    */
-  EType getType() const { return m_Type; }
+  ArchiveType getType() const { return m_Type; }
   /**
    * retrieve top-level folder
    * @return descriptor of the root folder
@@ -151,14 +144,16 @@ private:
 
   struct Header {
     char fileIdentifier[4];
-    Archive::EType type;
-    BSAULong offset;
-    BSAULong archiveFlags;
-    BSAULong folderCount;
-    BSAULong fileCount;
-    BSAULong folderNameLength;
-    BSAULong fileNameLength;
-    BSAULong fileFlags;
+    char archType[4];
+    ArchiveType type;
+    BSAUInt offset;
+    BSAUInt archiveFlags;
+    BSAUInt folderCount;
+    BSAUInt fileCount;
+    BSAUInt folderNameLength;
+    BSAUInt fileNameLength;
+    BSAUInt fileFlags;
+    BSAHash nameTableOffset;
   };
 
   struct FileInfo {
@@ -171,12 +166,12 @@ private:
 
   static Header readHeader(std::fstream &infile);
 
-  static EType typeFromID(BSAULong typeID);
+  static ArchiveType typeFromID(BSAULong typeID);
 
   static boost::shared_array<unsigned char> decompress(unsigned char *inBuffer, BSAULong inSize, EErrorCode &result, BSAULong &outSize);
 
 
-  BSAULong typeToID(EType type);
+  BSAULong typeToID(ArchiveType type);
 
   Folder readFolderRecord(std::fstream &file);
 
@@ -223,7 +218,7 @@ private:
   Folder::Ptr m_RootFolder;
 
   BSAULong m_ArchiveFlags;
-  EType m_Type;
+  ArchiveType m_Type;
 
 };
 
