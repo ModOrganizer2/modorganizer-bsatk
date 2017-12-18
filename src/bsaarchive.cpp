@@ -58,21 +58,25 @@ Archive::~Archive()
 }
 
 
-Archive::EType Archive::typeFromID(BSAULong typeID)
+ArchiveType Archive::typeFromID(BSAULong typeID)
 {
   switch (typeID) {
     case 0x67: return TYPE_OBLIVION;
     case 0x68: return TYPE_FALLOUT3;
+    case 0x69: return TYPE_SKYRIMSE;
+    case 0x01: return TYPE_FALLOUT4;
     default: throw data_invalid_exception(makeString("invalid type %d", typeID));
   }
 }
 
 
-BSAULong Archive::typeToID(EType type)
+BSAULong Archive::typeToID(ArchiveType type)
 {
   switch (type) {
     case TYPE_OBLIVION: return 0x67;
     case TYPE_FALLOUT3: return 0x68;
+    case TYPE_SKYRIMSE: return 0x69;
+    case TYPE_FALLOUT4: return 0x01;
     default: throw data_invalid_exception(makeString("invalid type %d", type));
   }
 }
@@ -82,20 +86,27 @@ Archive::Header Archive::readHeader(std::fstream &infile)
 {
   Header result;
 
-  char fileID[4];
-  infile.read(fileID, 4);
-  if (memcmp(fileID, "BSA\0", 4) != 0) {
-    throw data_invalid_exception(makeString("not a bsa file"));
+  infile.read(result.fileIdentifier, 4);
+  if (memcmp(result.fileIdentifier, "BSA\0", 4) != 0 && memcmp(result.fileIdentifier, "BTDX", 4) != 0) {
+    throw data_invalid_exception(makeString("not a bsa or ba2 file"));
   }
 
-  result.type  = typeFromID(readType<BSAULong>(infile));
-  result.offset           = readType<BSAULong>(infile);
-  result.archiveFlags     = readType<BSAULong>(infile);
-  result.folderCount      = readType<BSAULong>(infile);
-  result.fileCount        = readType<BSAULong>(infile);
-  result.folderNameLength = readType<BSAULong>(infile);
-  result.fileNameLength   = readType<BSAULong>(infile);
-  result.fileFlags        = readType<BSAULong>(infile);
+  ArchiveType type = typeFromID(readType<BSAUInt>(infile));
+  if (type == TYPE_FALLOUT4) {
+    result.type = type;
+    infile.read(result.archType, 4);
+    result.fileCount = readType<BSAUInt>(infile);
+    result.nameTableOffset = readType<BSAHash>(infile);
+  } else {
+    result.type = type;
+    result.offset = readType<BSAUInt>(infile);
+    result.archiveFlags = readType<BSAUInt>(infile);
+    result.folderCount = readType<BSAUInt>(infile);
+    result.fileCount = readType<BSAUInt>(infile);
+    result.folderNameLength = readType<BSAUInt>(infile);
+    result.fileNameLength = readType<BSAUInt>(infile);
+    result.fileFlags = readType<BSAUInt>(infile);
+  }
 
   return result;
 }
@@ -117,25 +128,43 @@ EErrorCode Archive::read(const char* fileName, bool testHashes)
     }
 
     m_Type = header.type;
-    m_ArchiveFlags = header.archiveFlags;
+    if (m_Type == TYPE_FALLOUT4) {
+      std::vector<Folder::Ptr> folders;
 
-    // flat list of folders as they were stored in the archive
-    std::vector<Folder::Ptr> folders;
+      m_File.seekg(header.nameTableOffset);
 
-    for (unsigned long i = 0; i < header.folderCount; ++i) {
-      folders.push_back(m_RootFolder->addFolder(m_File, header.fileNameLength, header.offset));
-    }
+      for (unsigned int i = 0; i < header.fileCount; ++i) {
+        BSAUShort length = readType<BSAUShort>(m_File);
 
-    m_File.seekg(header.offset);
+        char * file = new char[length+1];
+        m_File.read(file, length);
+        file[length] = '\0';
 
-    bool hashesValid = true;
-    for (std::vector<Folder::Ptr>::iterator iter = folders.begin();
-         iter != folders.end(); ++iter) {
-      if (!(*iter)->resolveFileNames(m_File, testHashes)) {
-        hashesValid = false;
+        folders.push_back(m_RootFolder->addFolderFromFile(file));
+        delete file;
       }
+      return ERROR_NONE;
+    } else {
+      m_ArchiveFlags = header.archiveFlags;
+
+      // flat list of folders as they were stored in the archive
+      std::vector<Folder::Ptr> folders;
+
+      for (unsigned long i = 0; i < header.folderCount; ++i) {
+        folders.push_back(m_RootFolder->addFolder(m_File, header.fileNameLength, header.offset, header.type));
+      }
+
+      m_File.seekg(header.offset);
+
+      bool hashesValid = true;
+      for (std::vector<Folder::Ptr>::iterator iter = folders.begin();
+        iter != folders.end(); ++iter) {
+        if (!(*iter)->resolveFileNames(m_File, testHashes)) {
+          hashesValid = false;
+        }
+      }
+      return hashesValid ? ERROR_NONE : ERROR_INVALIDHASHES;
     }
-    return hashesValid ? ERROR_NONE : ERROR_INVALIDHASHES;
   } catch (std::ios_base::failure&) {
     return ERROR_INVALIDDATA;
   }

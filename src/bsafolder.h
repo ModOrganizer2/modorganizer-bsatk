@@ -107,7 +107,9 @@ private:
    *               updated by the constructor so that it is the correct value after all folders are read
    * @return the new Folder object
    */
-  Folder::Ptr readFolder(std::fstream &file, BSAULong fileNamesLength, BSAULong &endPos);
+  Folder::Ptr readFolder(std::fstream &file, BSAUInt fileNamesLength, BSAUInt &endPos);
+
+  Folder::Ptr readFolderSE(std::fstream &file, BSAUInt fileNamesLength, BSAUInt &endPos);
 
   /**
    * recursive function to determine the correct subfolder to place the new
@@ -116,10 +118,12 @@ private:
   void addFolderInt(Folder::Ptr folder);
 
   /**
-   * add a new folder to the structure. It will automatically be added to the
-   * correct sub-folder if applicable
+   * Add a new folder to the structure.
+   * It will automatically be added to the correct sub-folder if applicable.
    */
-  Folder::Ptr addFolder(std::fstream &file, BSAULong fileNamesLength, BSAULong &endPos);
+  Folder::Ptr addFolder(std::fstream &file, BSAUInt fileNamesLength, BSAUInt &endPos, ArchiveType type);
+
+  Folder::Ptr addFolderFromFile(char * filePath);
 
   bool resolveFileNames(std::fstream &file, bool testHashes);
 
@@ -136,7 +140,7 @@ private:
   BSAHash m_NameHash;
   std::string m_Name;
   BSAULong m_FileCount;
-  BSAULong m_Offset;
+  BSAHash m_Offset;
   std::vector<Folder::Ptr> m_SubFolders;
   std::vector<File::Ptr> m_Files;
 
