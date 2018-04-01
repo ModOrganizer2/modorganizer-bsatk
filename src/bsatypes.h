@@ -36,12 +36,19 @@ typedef unsigned long BSAULong;
 typedef UINT64 BSAHash;
 
 enum ArchiveType {
+  TYPE_MORROWIND,
   TYPE_OBLIVION,
   TYPE_FALLOUT3,
   TYPE_FALLOUTNV = TYPE_FALLOUT3,
   TYPE_SKYRIM = TYPE_FALLOUT3,
   TYPE_SKYRIMSE,
   TYPE_FALLOUT4
+};
+
+struct MorrowindFileOffset
+{
+  BSAUInt size;
+  BSAUInt offset;
 };
 
 #else // WIN32

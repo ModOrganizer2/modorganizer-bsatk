@@ -143,7 +143,7 @@ public:
 private:
 
   struct Header {
-    char fileIdentifier[4];
+    uint32_t fileIdentifier;
     char archType[4];
     ArchiveType type;
     BSAUInt offset;
