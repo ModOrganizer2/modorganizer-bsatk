@@ -162,10 +162,16 @@ EErrorCode Archive::read(const char* fileName, bool testHashes)
       m_File.read((char *)fileSizeOffset.data(), header.fileCount * sizeof(MorrowindFileOffset));
       std::vector<BSAUInt> fileNameOffset(header.fileCount);
       m_File.read((char *)fileNameOffset.data(), header.fileCount * sizeof(BSAUInt));
+      BSAUInt last = header.offset - 12 * header.fileCount;
       for (uint32_t i = 0; i < header.fileCount; ++i) {
-        char *fileName = new char[fileNameOffset[i] + 1];
-        m_File.read(fileName, fileNameOffset[i]);
-        fileName[fileNameOffset[i] + 1] = '\0';
+        uint32_t index = 0;
+        if (i + 1 == header.fileCount)
+          index = last;
+        else
+          index = fileNameOffset[i + 1] - fileNameOffset[i];
+        char *fileName = new char[index + 1];
+        m_File.read(fileName, index);
+        fileName[index + 1] = '\0';
 
         folders.push_back(m_RootFolder->addFolderFromFile(fileName));
       }
