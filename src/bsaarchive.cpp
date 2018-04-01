@@ -24,6 +24,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include "bsafolder.h"
 #include <cstring>
 #include <fstream>
+#include <iostream>
 #include <algorithm>
 #include <queue>
 #include <memory>
@@ -61,6 +62,7 @@ Archive::~Archive()
 ArchiveType Archive::typeFromID(BSAULong typeID)
 {
   switch (typeID) {
+    case 0x100: return TYPE_MORROWIND;
     case 0x67: return TYPE_OBLIVION;
     case 0x68: return TYPE_FALLOUT3;
     case 0x69: return TYPE_SKYRIMSE;
@@ -73,6 +75,7 @@ ArchiveType Archive::typeFromID(BSAULong typeID)
 BSAULong Archive::typeToID(ArchiveType type)
 {
   switch (type) {
+    case TYPE_MORROWIND: return 0x100;
     case TYPE_OBLIVION: return 0x67;
     case TYPE_FALLOUT3: return 0x68;
     case TYPE_SKYRIMSE: return 0x69;
@@ -86,26 +89,33 @@ Archive::Header Archive::readHeader(std::fstream &infile)
 {
   Header result;
 
-  infile.read(result.fileIdentifier, 4);
-  if (memcmp(result.fileIdentifier, "BSA\0", 4) != 0 && memcmp(result.fileIdentifier, "BTDX", 4) != 0) {
+  result.fileIdentifier = readType<uint32_t>(infile);
+  if (result.fileIdentifier != 0x00415342 && result.fileIdentifier != 0x58445442 && result.fileIdentifier != 0x00000100) {
     throw data_invalid_exception(makeString("not a bsa or ba2 file"));
   }
 
-  ArchiveType type = typeFromID(readType<BSAUInt>(infile));
-  if (type == TYPE_FALLOUT4) {
-    result.type = type;
-    infile.read(result.archType, 4);
-    result.fileCount = readType<BSAUInt>(infile);
-    result.nameTableOffset = readType<BSAHash>(infile);
+  if (result.fileIdentifier != 0x00000100) {
+    ArchiveType type = typeFromID(readType<BSAUInt>(infile));
+    if (type == TYPE_FALLOUT4) {
+      result.type = type;
+      infile.read(result.archType, 4);
+      result.fileCount = readType<BSAUInt>(infile);
+      result.nameTableOffset = readType<BSAHash>(infile);
+    }
+    else {
+      result.type = type;
+      result.offset = readType<BSAUInt>(infile);
+      result.archiveFlags = readType<BSAUInt>(infile);
+      result.folderCount = readType<BSAUInt>(infile);
+      result.fileCount = readType<BSAUInt>(infile);
+      result.folderNameLength = readType<BSAUInt>(infile);
+      result.fileNameLength = readType<BSAUInt>(infile);
+      result.fileFlags = readType<BSAUInt>(infile);
+    }
   } else {
-    result.type = type;
+    result.type = TYPE_MORROWIND;
     result.offset = readType<BSAUInt>(infile);
-    result.archiveFlags = readType<BSAUInt>(infile);
-    result.folderCount = readType<BSAUInt>(infile);
     result.fileCount = readType<BSAUInt>(infile);
-    result.folderNameLength = readType<BSAUInt>(infile);
-    result.fileNameLength = readType<BSAUInt>(infile);
-    result.fileFlags = readType<BSAUInt>(infile);
   }
 
   return result;
@@ -142,6 +152,22 @@ EErrorCode Archive::read(const char* fileName, bool testHashes)
 
         folders.push_back(m_RootFolder->addFolderFromFile(file));
         delete file;
+      }
+      return ERROR_NONE;
+    } else if (m_Type == TYPE_MORROWIND) {
+      std::vector<Folder::Ptr> folders;
+      BSAUInt dataOffset = 12 + header.offset + header.fileCount * 8;
+
+      std::vector<MorrowindFileOffset> fileSizeOffset(header.fileCount);
+      m_File.read((char *)fileSizeOffset.data(), header.fileCount * sizeof(MorrowindFileOffset));
+      std::vector<BSAUInt> fileNameOffset(header.fileCount);
+      m_File.read((char *)fileNameOffset.data(), header.fileCount * sizeof(BSAUInt));
+      for (uint32_t i = 0; i < header.fileCount; ++i) {
+        char *fileName = new char[fileNameOffset[i] + 1];
+        m_File.read(fileName, fileNameOffset[i]);
+        fileName[fileNameOffset[i] + 1] = '\0';
+
+        folders.push_back(m_RootFolder->addFolderFromFile(fileName));
       }
       return ERROR_NONE;
     } else {
