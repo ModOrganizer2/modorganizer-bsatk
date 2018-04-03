@@ -26,6 +26,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include "errorcodes.h"
 #include "bsatypes.h"
 #include "bsafolder.h"
+#include "DDS.h"
 #include <vector>
 #include <queue>
 #ifndef Q_MOC_RUN
@@ -63,6 +64,9 @@ private:
   static const unsigned int FLAG_HASFILENAMES      = 0x00000002;
   static const unsigned int FLAG_DEFAULTCOMPRESSED = 0x00000004;
   static const unsigned int FLAG_NAMEPREFIXED      = 0x00000100; // if set, the full file name is prefixed before a data block
+
+                                                                 /* Record flags */
+#define OB_BSAFILE_FLAG_COMPRESS 0xC0000000 //!< Bit mask with OBBSAFileInfo::sizeFlags to get the compression status
 
 public:
   /**
@@ -128,7 +132,7 @@ public:
    * @param file the file to check
    * @return true if the file is compressed, false otherwise
    */
-  bool compressed(const File::Ptr &file);
+  bool compressed(const File::Ptr &file) const;
   /**
    * create a new file to be placed in this archive. The new file is NOT
    * added to a folder, use BSA::Folder::addFile for that
@@ -144,7 +148,7 @@ private:
 
   struct Header {
     uint32_t fileIdentifier;
-    char archType[4];
+    char archType[5];
     ArchiveType type;
     BSAUInt offset;
     BSAUInt archiveFlags;
@@ -178,7 +182,7 @@ private:
 //  EErrorCode extractDirect(const File &fileInfo, std::ofstream &outFile);
 //  EErrorCode extractCompressed(const File &fileInfo, std::ofstream &outFile);
 
-  bool defaultCompressed() const { return (m_ArchiveFlags & FLAG_DEFAULTCOMPRESSED) != 0; }
+  bool defaultCompressed() const { return m_ArchiveFlags & FLAG_DEFAULTCOMPRESSED; }
   // starting with FO3 the bsa may prefix the file name to the file blob if archive flag 0x100 is set
   bool namePrefixed() const { return (m_Type != TYPE_OBLIVION) && ((m_ArchiveFlags & FLAG_NAMEPREFIXED) != 0); }
 
@@ -192,6 +196,9 @@ private:
 
   void writeHeader(std::fstream &outfile, BSAULong fileFlags, BSAULong numFolders,
                    BSAULong folderNamesLength, BSAULong fileNamesLength);
+
+  DirectX::DDS_HEADER getDDSHeader(File::Ptr file, DirectX::DDS_HEADER_DXT10 &DX10Header, bool &isDX10) const;
+  void getDX10Header(DirectX::DDS_HEADER_DXT10 &DX10Header, File::Ptr file, DirectX::DDS_HEADER DDSHeader) const;
 
   EErrorCode extractDirect(File::Ptr file, std::ofstream &outFile) const;
   EErrorCode extractCompressed(File::Ptr file, std::ofstream &outFile) const;
