@@ -30,10 +30,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #ifdef WIN32
 #include <Windows.h>
 
+typedef unsigned char BSAUChar;
 typedef unsigned short BSAUShort;
 typedef unsigned int BSAUInt;
 typedef unsigned long BSAULong;
-typedef UINT64 BSAHash;
+typedef unsigned long long BSAHash;
 
 enum ArchiveType {
   TYPE_MORROWIND,
@@ -49,6 +50,31 @@ struct MorrowindFileOffset
 {
   BSAUInt size;
   BSAUInt offset;
+};
+
+struct FO4TextureHeader
+{
+  BSAUInt nameHash;;
+  char extension[4];
+  BSAUInt dirHash;
+  BSAUChar unknown1;
+  BSAUChar chunkNumber;
+  BSAUShort chunkHeaderSize;
+  BSAUShort height;
+  BSAUShort width;
+  BSAUChar mipCount;
+  BSAUChar format;
+  BSAUShort unknown2;
+};
+
+struct FO4TextureChunk
+{
+  BSAHash	offset;
+  BSAUInt	packedSize;	
+  BSAUInt	unpackedSize;
+  BSAUShort	startMip;
+  BSAUShort	endMip;
+  BSAUInt	unknown;
 };
 
 #else // WIN32

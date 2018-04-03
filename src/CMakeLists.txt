@@ -24,6 +24,8 @@ SET(bsatk_HDRS
     bsafolder.h
     bsaexception.h
     bsaarchive.h
+    dxgiformat.h
+    DDS.h
   )
 
 SET(Boost_USE_STATIC_LIBS        ON)
@@ -35,9 +37,14 @@ FIND_PACKAGE(zlib REQUIRED)
 
 INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS}
                     ${ZLIB_INCLUDE_DIRS}
-                    ${ZLIB_INCLUDE_DIRS}/build) # in case of an out-of-source build
+                    ${ZLIB_INCLUDE_DIRS}/build # in case of an out-of-source build
+                    ${LZ4_ROOT}/include)
+
+LINK_DIRECTORIES(${LZ4_ROOT}/dll)
 
 ADD_LIBRARY(bsatk STATIC ${bsatk_HDRS} ${bsatk_SRCS})
+
+TARGET_LINK_LIBRARIES(liblz4)
 
 IF (NOT "${OPTIMIZE_COMPILE_FLAGS}" STREQUAL "")
   SET_TARGET_PROPERTIES(bsatk PROPERTIES COMPILE_FLAGS_RELWITHDEBINFO

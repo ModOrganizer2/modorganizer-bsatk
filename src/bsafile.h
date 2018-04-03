@@ -44,6 +44,11 @@ public:
   typedef std::shared_ptr<File> Ptr;
   friend bool ByOffset(const File::Ptr &LHS, const File::Ptr &RHS);
 
+private:
+
+  static const unsigned int SIZEMASK = 0x3fffffff;
+  static const unsigned int COMPRESSMASK = 0xC0000000;
+
 public:
 
   /**
@@ -77,6 +82,18 @@ private:
   File(std::fstream &file, Folder *folder);
 
   /**
+   * construct file from morrowind BSA or BA2
+   * @param name of the base file from source archive
+   * @param folder the folder to add the file to
+   * @param fileSize the file size of the file in the archive
+   * @param dataOffset the offset of the file data in the archive
+   * @param toggleCompressed the detected compression mode of the archive
+   */
+  File(const std::string &name, Folder *folder,
+    BSAULong fileSizee, BSAHash dataOffset, BSAULong uncompressedFileSize,
+    FO4TextureHeader header, std::vector<FO4TextureChunk> &texChunks);
+
+  /**
    * construct from loose file
    * @param name the base name of the file inside the archive
    * @param sourceFile the file to read from
@@ -86,6 +103,7 @@ private:
    */
   File(const std::string &name, const std::string &sourceFile,
        Folder *folder, bool toggleCompressed);
+
   /**
    * @return true if its compression mode for this file differs from the archive default
    */
@@ -95,7 +113,7 @@ private:
    * @return offset to the file data. Only valid if the source of the file is
    *         an archive
    */
-  BSAULong getDataOffset() const { return m_DataOffset; }
+  BSAHash getDataOffset() const { return m_DataOffset; }
   void writeHeader(std::fstream &file) const;
   EErrorCode writeData(std::fstream &sourceArchive, std::fstream &targetArchive) const;
 
@@ -111,8 +129,12 @@ private:
   BSAHash m_NameHash;
   std::string m_Name;
   mutable BSAULong m_FileSize;
-  BSAULong m_DataOffset;
+  mutable BSAULong m_UncompressedFileSize;
+  BSAHash m_DataOffset;
   bool m_ToggleCompressed;
+
+  FO4TextureHeader m_TextureHeader = {};
+  std::vector<FO4TextureChunk> m_TextureChunks;
 
   std::string m_SourceFile;
   bool m_ToggleCompressedWrite;
