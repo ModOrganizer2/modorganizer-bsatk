@@ -217,28 +217,6 @@ EErrorCode Archive::read(const char* fileName, bool testHashes)
         delete[] filePath;
       }
       return ERROR_NONE;
-    } else if (m_Type == TYPE_MORROWIND) {
-      std::vector<Folder::Ptr> folders;
-      BSAUInt dataOffset = 12 + header.offset + header.fileCount * 8;
-
-      std::vector<MorrowindFileOffset> fileSizeOffset(header.fileCount);
-      m_File.read((char *)fileSizeOffset.data(), header.fileCount * sizeof(MorrowindFileOffset));
-      std::vector<BSAUInt> fileNameOffset(header.fileCount);
-      m_File.read((char *)fileNameOffset.data(), header.fileCount * sizeof(BSAUInt));
-      BSAUInt last = header.offset - 12 * header.fileCount;
-      for (uint32_t i = 0; i < header.fileCount; ++i) {
-        uint32_t index = 0;
-        if (i + 1 == header.fileCount)
-          index = last;
-        else
-          index = fileNameOffset[i + 1] - fileNameOffset[i];
-        char *fileName = new char[index + 1];
-        m_File.read(fileName, index);
-        fileName[index + 1] = '\0';
-
-        folders.push_back(m_RootFolder->addFolderFromFile(fileName));
-      }
-      return ERROR_NONE;
     } else {
       // flat list of folders as they were stored in the archive
       std::vector<Folder::Ptr> folders;
