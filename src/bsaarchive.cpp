@@ -481,19 +481,12 @@ DirectX::DDS_HEADER Archive::getDDSHeader(File::Ptr file, DirectX::DDS_HEADER_DX
     break;
 
   case DXGI_FORMAT_BC7_UNORM:
-    DDSHeaderData.ddspf = DirectX::DDSPF_DX10;
-    DDSHeaderData.pitchOrLinearSize = file->m_TextureHeader.width * file->m_TextureHeader.height;
-
-    isDX10 = true;
-    DX10Header.dxgiFormat = DXGI_FORMAT_BC7_UNORM;
-    break;
-
   case DXGI_FORMAT_BC7_UNORM_SRGB:
     DDSHeaderData.ddspf = DirectX::DDSPF_DX10;
     DDSHeaderData.pitchOrLinearSize = file->m_TextureHeader.width * file->m_TextureHeader.height;
 
     isDX10 = true;
-    DX10Header.dxgiFormat = DXGI_FORMAT_BC7_UNORM_SRGB;
+    DX10Header.dxgiFormat = file->m_TextureHeader.format;
     break;
 
   case DXGI_FORMAT_R8G8B8A8_UNORM:
