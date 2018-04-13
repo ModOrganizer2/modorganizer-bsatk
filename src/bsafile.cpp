@@ -47,15 +47,26 @@ static const unsigned long CHUNK_SIZE = 128 * 1024;
 
 
 File::File(std::fstream &file, Folder *folder)
-  : m_Folder(folder), m_New(false), m_ToggleCompressed(false)
+  : m_Folder(folder), m_New(false)
 {
   m_NameHash = readType<BSAHash>(file);
   m_FileSize = readType<BSAULong>(file);
   m_DataOffset = readType<BSAULong>(file);
-  if ((m_FileSize & (1 << 30)) != 0) {
+  m_ToggleCompressed = m_FileSize & COMPRESSMASK;
+  m_FileSize = m_FileSize & SIZEMASK;
+}
+
+File::File(const std::string &name, Folder *folder,
+  BSAULong fileSize, BSAHash dataOffset, BSAULong uncompressedFileSize,
+  FO4TextureHeader header, std::vector<FO4TextureChunk> &texChunks)
+  : m_Folder(folder), m_New(false), m_Name(name),
+  m_FileSize(fileSize), m_UncompressedFileSize(uncompressedFileSize),
+  m_DataOffset(dataOffset), m_TextureHeader(header), m_TextureChunks(texChunks)
+{
+  m_NameHash = calculateBSAHash(name);
+  m_ToggleCompressed = false;
+  if (m_FileSize > 0 && m_UncompressedFileSize > 0)
     m_ToggleCompressed = true;
-    m_FileSize ^= (1 << 30);
-  }
 }
 
 
@@ -67,7 +78,6 @@ File::File(const std::string &name, const std::string &sourceFile,
 {
   m_NameHash = calculateBSAHash(name);
 }
-
 
 std::string File::getFilePath() const
 {

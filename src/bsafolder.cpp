@@ -177,6 +177,47 @@ void Folder::addFolderInt(Folder::Ptr folder)
   }
 }
 
+Folder::Ptr Folder::addOrFindFolderInt(Folder *folder)
+{
+  for (std::vector<Folder::Ptr>::iterator iter = m_SubFolders.begin();
+    iter != m_SubFolders.end(); ++iter) {
+    // for folder to be a subfolder of iter, the name of iter has to be the
+    // first path component of folders path and there has to be room left for a 
+    // backslash and the name of folder itself
+    size_t nameLength = (*iter)->m_Name.length();
+    if ((folder->m_Name.length() > (*iter)->m_Name.length()) &&
+      (folder->m_Name.compare(0, (*iter)->m_Name.length(), (*iter)->m_Name) == 0) &&
+      ((folder->m_Name[nameLength] == '\\') ||
+      (folder->m_Name[nameLength] == '/'))) {
+      // remove the matched part of the path and recurse
+      folder->m_Name = folder->m_Name.substr((*iter)->m_Name.length() + 1);
+      return (*iter)->addOrFindFolderInt(folder);
+    } else {
+      std::string::size_type pos = folder->m_Name.find_first_of("\\/");
+      if (pos == std::string::npos && (*iter)->m_Name.compare(folder->m_Name) == 0) {
+        return *iter;
+      }
+    }
+  }
+
+  // no subfolder matches, create one
+  std::string::size_type pos = folder->m_Name.find_first_of("\\/");
+  if (pos == std::string::npos) {
+    // no more path components, add the new folder right here
+    folder->m_Parent = this;
+    m_SubFolders.push_back(Folder::Ptr(folder));
+    return m_SubFolders.back();
+  } else {
+    // add dummy folder for the next path component
+    Folder::Ptr dummy(new Folder);
+    dummy->m_Parent = this;
+    dummy->m_Name = folder->m_Name.substr(0, pos);
+    folder->m_Name = folder->m_Name.substr(pos + 1);
+    Folder::Ptr result = dummy->addOrFindFolderInt(folder);
+    m_SubFolders.push_back(dummy);
+    return result;
+  }
+}
 
 Folder::Ptr Folder::addFolder(std::fstream &file, BSAUInt fileNamesLength, BSAUInt &endPos, ArchiveType type)
 {
@@ -190,20 +231,24 @@ Folder::Ptr Folder::addFolder(std::fstream &file, BSAUInt fileNamesLength, BSAUI
   return temp;
 }
 
-Folder::Ptr Folder::addFolderFromFile(char * filePath)
+Folder::Ptr Folder::addFolderFromFile(std::string filePath, BSAUInt size, BSAHash offset, BSAUInt uncompressedSize, FO4TextureHeader header, std::vector<FO4TextureChunk> &texChunks)
 {
   std::experimental::filesystem::path file(filePath);
 
-  file.parent_path();
+  Folder *tempFolder = new Folder();
 
-  Folder::Ptr result(new Folder());
-  result->m_NameHash = calculateBSAHash(filePath);
-  result->m_FileCount = 1;
-  result->m_Name = file.parent_path().string();
+  tempFolder->m_NameHash = calculateBSAHash(filePath);
+  tempFolder->m_Name = file.parent_path().string();
+  Folder::Ptr result = addOrFindFolderInt(tempFolder);
 
-  result->m_Files.push_back(File::Ptr(new File(file.filename().string(), "", result.get(), false)));
+  if (result.get() != tempFolder) {
+    delete tempFolder;
+  }
 
-  addFolderInt(result);
+  std::string fileName = file.filename().string();
+
+  result->m_FileCount++;
+  result->m_Files.push_back(File::Ptr(new File(fileName, result.get(), size, offset, uncompressedSize, header, texChunks)));
 
   return result;
 }

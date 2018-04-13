@@ -24,6 +24,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include "bsafolder.h"
 #include <cstring>
 #include <fstream>
+#include <iostream>
 #include <algorithm>
 #include <queue>
 #include <memory>
@@ -32,6 +33,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include <boost/interprocess/sync/scoped_lock.hpp>
 #include <boost/interprocess/sync/interprocess_semaphore.hpp>
 #include <zlib.h>
+#include <lz4frame.h>
 #include <sys/stat.h>
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
@@ -61,6 +63,7 @@ Archive::~Archive()
 ArchiveType Archive::typeFromID(BSAULong typeID)
 {
   switch (typeID) {
+    case 0x100: return TYPE_MORROWIND;
     case 0x67: return TYPE_OBLIVION;
     case 0x68: return TYPE_FALLOUT3;
     case 0x69: return TYPE_SKYRIMSE;
@@ -73,6 +76,7 @@ ArchiveType Archive::typeFromID(BSAULong typeID)
 BSAULong Archive::typeToID(ArchiveType type)
 {
   switch (type) {
+    case TYPE_MORROWIND: return 0x100;
     case TYPE_OBLIVION: return 0x67;
     case TYPE_FALLOUT3: return 0x68;
     case TYPE_SKYRIMSE: return 0x69;
@@ -86,26 +90,36 @@ Archive::Header Archive::readHeader(std::fstream &infile)
 {
   Header result;
 
-  infile.read(result.fileIdentifier, 4);
-  if (memcmp(result.fileIdentifier, "BSA\0", 4) != 0 && memcmp(result.fileIdentifier, "BTDX", 4) != 0) {
+  result.fileIdentifier = readType<uint32_t>(infile);
+  if (result.fileIdentifier != 0x00415342 && result.fileIdentifier != 0x58445442 && result.fileIdentifier != 0x00000100) {
     throw data_invalid_exception(makeString("not a bsa or ba2 file"));
   }
 
-  ArchiveType type = typeFromID(readType<BSAUInt>(infile));
-  if (type == TYPE_FALLOUT4) {
-    result.type = type;
-    infile.read(result.archType, 4);
-    result.fileCount = readType<BSAUInt>(infile);
-    result.nameTableOffset = readType<BSAHash>(infile);
+  if (result.fileIdentifier != 0x00000100) {
+    ArchiveType type = typeFromID(readType<BSAUInt>(infile));
+    if (type == TYPE_FALLOUT4) {
+      result.type = type;
+      infile.read(result.archType, 4);
+      result.archType[4] = '\0';
+      result.fileCount = readType<BSAUInt>(infile);
+      result.nameTableOffset = readType<BSAHash>(infile);
+      result.archiveFlags = FLAG_HASDIRNAMES | FLAG_HASFILENAMES;
+    }
+    else {
+      result.type = type;
+      result.offset = readType<BSAUInt>(infile);
+      result.archiveFlags = readType<BSAUInt>(infile);
+      result.folderCount = readType<BSAUInt>(infile);
+      result.fileCount = readType<BSAUInt>(infile);
+      result.folderNameLength = readType<BSAUInt>(infile);
+      result.fileNameLength = readType<BSAUInt>(infile);
+      result.fileFlags = readType<BSAUInt>(infile);
+    }
   } else {
-    result.type = type;
+    result.type = TYPE_MORROWIND;
     result.offset = readType<BSAUInt>(infile);
-    result.archiveFlags = readType<BSAUInt>(infile);
-    result.folderCount = readType<BSAUInt>(infile);
     result.fileCount = readType<BSAUInt>(infile);
-    result.folderNameLength = readType<BSAUInt>(infile);
-    result.fileNameLength = readType<BSAUInt>(infile);
-    result.fileFlags = readType<BSAUInt>(infile);
+    result.archiveFlags = FLAG_HASDIRNAMES | FLAG_HASFILENAMES;
   }
 
   return result;
@@ -126,27 +140,84 @@ EErrorCode Archive::read(const char* fileName, bool testHashes)
     } catch (const data_invalid_exception &e) {
       throw data_invalid_exception(makeString("%s (filename: %s)", e.what(), fileName));
     }
-
+    m_ArchiveFlags = header.archiveFlags;
     m_Type = header.type;
     if (m_Type == TYPE_FALLOUT4) {
       std::vector<Folder::Ptr> folders;
 
       m_File.seekg(header.nameTableOffset);
 
+      std::vector<std::string> fileNames;
       for (unsigned int i = 0; i < header.fileCount; ++i) {
         BSAUShort length = readType<BSAUShort>(m_File);
 
-        char * file = new char[length+1];
+        char *file = new char[length+1];
         m_File.read(file, length);
         file[length] = '\0';
 
-        folders.push_back(m_RootFolder->addFolderFromFile(file));
-        delete file;
+        fileNames.push_back(file);
+        delete[] file;
+      }
+      if (strcmp(header.archType, "GNRL") == 0) {
+        m_File.seekg(24, std::ios::beg);
+        for (unsigned int i = 0; i < header.fileCount; ++i) {
+          BSAUInt nameHash = readType<BSAUInt>(m_File);
+          char *extension = new char[4];
+          m_File.read(extension, 4);
+          BSAUInt dirHash = readType<BSAUInt>(m_File);
+          m_File.seekg(4, std::ios::cur);
+          BSAHash offset = readType<BSAHash>(m_File);
+          BSAUInt packedSize = readType<BSAUInt>(m_File);
+          BSAUInt unpackedSize = readType<BSAUInt>(m_File);
+          m_File.seekg(4, std::ios::cur);
+          Folder::Ptr newDir = m_RootFolder->addFolderFromFile(fileNames[i], packedSize, offset, unpackedSize, {}, std::vector<FO4TextureChunk>());
+          if (std::find(folders.begin(), folders.end(), newDir) == folders.end())
+            folders.push_back(newDir);
+          delete[] extension;
+        }
+      } else if (strcmp(header.archType, "DX10") == 0) {
+        m_File.seekg(24, std::ios::beg);
+        for (unsigned int i = 0; i < header.fileCount; ++i) {
+          FO4TextureHeader texHeader = readType<FO4TextureHeader>(m_File);
+          std::vector<FO4TextureChunk> chunks;
+          for (unsigned int j = 0; j < texHeader.chunkNumber; ++j) {
+            FO4TextureChunk chunk = readType<FO4TextureChunk>(m_File);
+            chunks.push_back(chunk);
+          }
+          Folder::Ptr newDir = m_RootFolder->addFolderFromFile(fileNames[i], chunks[0].packedSize, chunks[0].offset, chunks[0].unpackedSize, texHeader, chunks);
+          if (std::find(folders.begin(), folders.end(), newDir) == folders.end())
+            folders.push_back(newDir);
+        }
+      }
+
+      return ERROR_NONE;
+    } else if (m_Type == TYPE_MORROWIND) {
+      std::vector<Folder::Ptr> folders;
+      BSAUInt dataOffset = 12 + header.offset + header.fileCount * 8;
+
+      std::vector<MorrowindFileOffset> fileSizeOffset(header.fileCount);
+      m_File.read((char *)fileSizeOffset.data(), header.fileCount * sizeof(MorrowindFileOffset));
+      std::vector<BSAUInt> fileNameOffset(header.fileCount);
+      m_File.read((char *)fileNameOffset.data(), header.fileCount * sizeof(BSAUInt));
+      BSAUInt last = header.offset - 12 * header.fileCount;
+      for (uint32_t i = 0; i < header.fileCount; ++i) {
+        uint32_t index = 0;
+        if (i + 1 == header.fileCount)
+          index = last;
+        else
+          index = fileNameOffset[i + 1] - fileNameOffset[i];
+        char *filePath = new char[index + 1];
+        m_File.read(filePath, index);
+        filePath[index] = '\0';
+
+        Folder::Ptr newDir = m_RootFolder->addFolderFromFile(filePath, fileSizeOffset[i].size, dataOffset + fileSizeOffset[i].offset, 0, {}, std::vector<FO4TextureChunk>());
+        if (std::find(folders.begin(), folders.end(), newDir) == folders.end())
+          folders.push_back(newDir);
+
+        delete[] filePath;
       }
       return ERROR_NONE;
     } else {
-      m_ArchiveFlags = header.archiveFlags;
-
       // flat list of folders as they were stored in the archive
       std::vector<Folder::Ptr> folders;
 
@@ -368,20 +439,151 @@ EErrorCode Archive::write(const char *fileName)
   }
 }
 
+DirectX::DDS_HEADER Archive::getDDSHeader(File::Ptr file, DirectX::DDS_HEADER_DXT10 &DX10Header, bool &isDX10) const
+{
+  DirectX::DDS_HEADER DDSHeaderData = {};
+  DDSHeaderData.size = sizeof(DDSHeaderData);
+  DDSHeaderData.flags = DDS_HEADER_FLAGS_TEXTURE | DDS_HEADER_FLAGS_LINEARSIZE | DDS_HEADER_FLAGS_MIPMAP;
+  DDSHeaderData.height = file->m_TextureHeader.height;
+  DDSHeaderData.width = file->m_TextureHeader.width;
+  DDSHeaderData.mipMapCount = file->m_TextureHeader.mipCount;
+  DDSHeaderData.ddspf.size = sizeof(DirectX::DDS_PIXELFORMAT);
+  DDSHeaderData.caps = DDS_SURFACE_FLAGS_TEXTURE | DDS_SURFACE_FLAGS_MIPMAP;
+
+  if (file->m_TextureHeader.unknown2 == 2049)
+    DDSHeaderData.caps2 = DDS_CUBEMAP_ALLFACES;
+
+  bool supported = true;
+
+  switch (file->m_TextureHeader.format) {
+  case DXGI_FORMAT_BC1_UNORM:
+  case DXGI_FORMAT_BC1_UNORM_SRGB:
+    DDSHeaderData.ddspf = DirectX::DDSPF_DXT1;
+    DDSHeaderData.pitchOrLinearSize = file->m_TextureHeader.width * file->m_TextureHeader.height / 2;
+    break;
+
+  case DXGI_FORMAT_BC2_UNORM:
+  case DXGI_FORMAT_BC2_UNORM_SRGB:
+    DDSHeaderData.ddspf = DirectX::DDSPF_DXT3;
+    DDSHeaderData.pitchOrLinearSize = file->m_TextureHeader.width * file->m_TextureHeader.height;
+    break;
+
+  case DXGI_FORMAT_BC3_UNORM:
+  case DXGI_FORMAT_BC3_UNORM_SRGB:
+    DDSHeaderData.ddspf = DirectX::DDSPF_DXT5;
+    DDSHeaderData.pitchOrLinearSize = file->m_TextureHeader.width * file->m_TextureHeader.height;
+    break;
+
+  case DXGI_FORMAT_BC5_UNORM:
+    DDSHeaderData.ddspf.flags = DDS_FOURCC;
+    DDSHeaderData.ddspf.fourCC = MAKEFOURCC('A', 'T', 'I', '2');
+    DDSHeaderData.pitchOrLinearSize = file->m_TextureHeader.width * file->m_TextureHeader.height;
+    break;
+
+  case DXGI_FORMAT_BC7_UNORM:
+  case DXGI_FORMAT_BC7_UNORM_SRGB:
+    DDSHeaderData.ddspf = DirectX::DDSPF_DX10;
+    DDSHeaderData.pitchOrLinearSize = file->m_TextureHeader.width * file->m_TextureHeader.height;
+
+    isDX10 = true;
+    DX10Header.dxgiFormat = file->m_TextureHeader.format;
+    break;
+
+  case DXGI_FORMAT_R8G8B8A8_UNORM:
+    DDSHeaderData.ddspf = DirectX::DDSPF_A8R8G8B8;
+    DDSHeaderData.pitchOrLinearSize = file->m_TextureHeader.width * file->m_TextureHeader.height * 4;	// 32bpp
+    break;
+
+  case DXGI_FORMAT_B8G8R8A8_UNORM:
+    DDSHeaderData.ddspf = DirectX::DDSPF_A8B8G8R8;
+    DDSHeaderData.pitchOrLinearSize = file->m_TextureHeader.width * file->m_TextureHeader.height * 4;	// 32bpp
+    break;
+
+  case DXGI_FORMAT_B8G8R8X8_UNORM:
+    DDSHeaderData.ddspf = DirectX::DDSPF_X8B8G8R8;
+    break;
+
+  case DXGI_FORMAT_R8_UNORM:
+    DDSHeaderData.ddspf = DirectX::DDSPF_L8;
+    DDSHeaderData.pitchOrLinearSize = file->m_TextureHeader.width * file->m_TextureHeader.height;	// 8bpp
+    break;
+
+  default:
+    return {};
+    break;
+  }
+
+  return DDSHeaderData;
+}
+
+void Archive::getDX10Header(DirectX::DDS_HEADER_DXT10 &DX10Header, File::Ptr file, DirectX::DDS_HEADER DDSHeader) const
+{
+  DX10Header.resourceDimension = DirectX::DDS_DIMENSION_TEXTURE2D;
+  DX10Header.miscFlag = 0;
+  DX10Header.arraySize = 1;
+  DX10Header.miscFlags2 = 0;
+}
 
 static const unsigned long CHUNK_SIZE = 128 * 1024;
-
-
 
 EErrorCode Archive::extractDirect(File::Ptr file, std::ofstream &outFile) const
 {
   EErrorCode result = ERROR_NONE;
-
-  m_File.seekg(file->m_DataOffset, fstream::beg);
-  if (namePrefixed()) {
-    readBString(m_File);
+  if (file->m_FileSize == 0) {
+    // don't try to read empty file
+    return result;
   }
 
+  m_File.clear();
+  m_File.seekg(static_cast<std::ifstream::pos_type>(file->m_DataOffset), std::ios::beg);
+
+  if (m_Type == TYPE_FALLOUT4) {
+    if (!file->m_TextureChunks.size()) {
+      BSAULong size = file->m_UncompressedFileSize;
+      std::unique_ptr<char[]> buffer(new char[size]);
+      m_File.read(buffer.get(), size);
+      outFile.write(buffer.get(), size);
+    } else {
+      bool isDX10 = false;
+      DirectX::DDS_HEADER_DXT10 DX10HeaderData = {};
+      DirectX::DDS_HEADER DDSHeaderData = getDDSHeader(file, DX10HeaderData, isDX10);
+
+      outFile.write("DDS ", 4);
+      char *DDSHeader = new char[sizeof(DDSHeaderData)];
+      memcpy(DDSHeader, &DDSHeaderData, sizeof(DDSHeaderData));
+      outFile.write(DDSHeader, sizeof(DDSHeaderData));
+      delete DDSHeader;
+
+      if (isDX10) {
+        getDX10Header(DX10HeaderData, file, DDSHeaderData);
+        char *DX10Header = new char[sizeof(DX10HeaderData)];
+        memcpy(DX10Header, &DX10HeaderData, sizeof(DX10HeaderData));
+        outFile.write(DX10Header, sizeof(DX10HeaderData));
+        delete DX10Header;
+      }
+
+      for (BSAUInt i = 0; i < file->m_TextureChunks.size(); ++i) {
+        BSAULong length = file->m_TextureChunks[i].unpackedSize;
+        std::unique_ptr<char[]> chunk(new char[length]);
+        m_File.read(chunk.get(), length);
+        outFile.write(chunk.get(), length);
+      }
+    }
+  } else {
+    BSAULong size = file->m_FileSize;
+    if (namePrefixed()) {
+      std::string fullName = readBString(m_File);
+      if (size <= fullName.length()) {
+#pragma message("report error!")
+        return result;
+      }
+      size -= fullName.length() + 1;
+    }
+    std::unique_ptr<unsigned char[]> buffer(new unsigned char[size]);
+    m_File.read(reinterpret_cast<char*>(buffer.get()), size);
+    if (result == ERROR_NONE)
+      outFile.write(reinterpret_cast<char*>(buffer.get()), size);
+  }
   std::unique_ptr<char[]> inBuffer(new char[CHUNK_SIZE]);
 
   try {
@@ -403,9 +605,11 @@ EErrorCode Archive::extractDirect(File::Ptr file, std::ofstream &outFile) const
 boost::shared_array<unsigned char> Archive::decompress(unsigned char *inBuffer, BSAULong inSize,
                                                        EErrorCode &result, BSAULong &outSize)
 {
-  memcpy(&outSize, inBuffer, sizeof(BSAULong));
-  inBuffer += sizeof(BSAULong);
-  inSize -= sizeof(BSAULong);
+  if (outSize == 0) {
+    memcpy(&outSize, inBuffer, sizeof(BSAULong));
+    inBuffer += sizeof(BSAULong);
+    inSize -= sizeof(BSAULong);
+  }
 
   if ((inSize == 0) || (outSize == 0)) {
     return boost::shared_array<unsigned char>();
@@ -418,17 +622,13 @@ boost::shared_array<unsigned char> Archive::decompress(unsigned char *inBuffer, 
     stream.zalloc = Z_NULL;
     stream.zfree = Z_NULL;
     stream.opaque = Z_NULL;
-    stream.avail_in = 0;
-    stream.next_in = Z_NULL;
-    int zlibRet = inflateInit(&stream);
+    stream.avail_in = inSize;
+    stream.next_in = static_cast<Bytef*>(inBuffer);
+    int zlibRet = inflateInit2(&stream, 15 + 32);
     if (zlibRet != Z_OK) {
       result = ERROR_ZLIBINITFAILED;
       return boost::shared_array<unsigned char>();
     }
-
-    stream.avail_in = inSize;
-
-    stream.next_in = static_cast<Bytef*>(inBuffer);
 
     do {
       stream.avail_out = outSize;
@@ -448,11 +648,9 @@ boost::shared_array<unsigned char> Archive::decompress(unsigned char *inBuffer, 
   }
 }
 
-
 EErrorCode Archive::extractCompressed(File::Ptr file, std::ofstream &outFile) const
 {
   EErrorCode result = ERROR_NONE;
-
   if (file->m_FileSize == 0) {
     // don't try to read empty file
     return result;
@@ -460,17 +658,88 @@ EErrorCode Archive::extractCompressed(File::Ptr file, std::ofstream &outFile) co
 
   m_File.clear();
   m_File.seekg(static_cast<std::ifstream::pos_type>(file->m_DataOffset), std::ios::beg);
-  if (namePrefixed()) {
-    readBString(m_File);
-  }
 
-  BSAULong inSize = file->m_FileSize + sizeof(BSAULong); // file data has original size prepended
-  std::unique_ptr<unsigned char[]> inBuffer(new unsigned char[inSize]);
-  m_File.read(reinterpret_cast<char*>(inBuffer.get()), inSize);
-  BSAULong length = 0L;
-  boost::shared_array<unsigned char> buffer = decompress(inBuffer.get(), inSize, result, length);
-  if (result == ERROR_NONE) {
-    outFile.write(reinterpret_cast<char*>(buffer.get()), length);
+  if (m_Type == TYPE_FALLOUT4) {
+    if (!file->m_TextureChunks.size()) {
+      BSAULong inSize = file->m_FileSize;
+      std::unique_ptr<unsigned char[]> inBuffer(new unsigned char[inSize]);
+      m_File.read(reinterpret_cast<char*>(inBuffer.get()), inSize);
+      BSAULong length = file->m_UncompressedFileSize;
+      boost::shared_array<unsigned char> buffer = decompress(inBuffer.get(), inSize, result, length);
+      if (result == ERROR_NONE) {
+        outFile.write(reinterpret_cast<char*>(buffer.get()), length);
+      }
+    } else {
+      bool isDX10 = false;
+      DirectX::DDS_HEADER_DXT10 DX10HeaderData = {};
+      DirectX::DDS_HEADER DDSHeaderData = getDDSHeader(file, DX10HeaderData, isDX10);
+
+      outFile.write("DDS ", 4);
+      char *DDSHeader = new char[sizeof(DDSHeaderData)];
+      memcpy(DDSHeader, &DDSHeaderData, sizeof(DDSHeaderData));
+      outFile.write(DDSHeader, sizeof(DDSHeaderData));
+      delete DDSHeader;
+
+      if (isDX10) {
+        getDX10Header(DX10HeaderData, file, DDSHeaderData);
+        char *DX10Header = new char[sizeof(DX10HeaderData)];
+        memcpy(DX10Header, &DX10HeaderData, sizeof(DX10HeaderData));
+        outFile.write(DX10Header, sizeof(DX10HeaderData));
+        delete DX10Header;
+      }
+
+      for (BSAUInt i = 0; i < file->m_TextureChunks.size(); ++i) {
+        BSAULong length = file->m_TextureChunks[i].unpackedSize;
+        std::unique_ptr<unsigned char[]> chunk(new unsigned char[file->m_TextureChunks[i].packedSize]);
+        m_File.read(reinterpret_cast<char*>(chunk.get()), file->m_TextureChunks[i].packedSize);
+        boost::shared_array<unsigned char> unpackedChunk = decompress(chunk.get(), file->m_TextureChunks[i].packedSize, result, length);
+        if (result == ERROR_NONE) {
+          outFile.write(reinterpret_cast<char*>(unpackedChunk.get()), length);
+        }
+      }
+    }
+  } else if (m_Type == TYPE_SKYRIMSE) {
+    BSAULong inSize = file->m_FileSize;
+    if (namePrefixed()) {
+      std::string fullName = readBString(m_File);
+      if (inSize <= fullName.length()) {
+#pragma message("report error!")
+        return result;
+      }
+      inSize -= fullName.length() + 1;
+    }
+    BSAULong outSize = readType<BSAULong>(m_File);
+    inSize -= sizeof(BSAULong);
+    std::unique_ptr<unsigned char[]> inBuffer(new unsigned char[inSize]);
+    m_File.read(reinterpret_cast<char*>(inBuffer.get()), inSize);
+
+    LZ4F_decompressionContext_t dcContext = nullptr;
+    LZ4F_decompressOptions_t options = {};
+    LZ4F_createDecompressionContext(&dcContext, LZ4F_VERSION);
+    size_t lzOutSize = outSize;
+    size_t lzInSize = inSize;
+
+    std::unique_ptr<unsigned char[]> outBuffer(new unsigned char[outSize]);
+    LZ4F_decompress(dcContext, outBuffer.get(), &lzOutSize, inBuffer.get(), &lzInSize, &options);
+
+    outFile.write(reinterpret_cast<char*>(outBuffer.get()), outSize);
+  } else {
+    BSAULong inSize = file->m_FileSize;
+    if (namePrefixed()) {
+      std::string fullName = readBString(m_File);
+      if (inSize <= fullName.length()) {
+#pragma message("report error!")
+        return result;
+      }
+      inSize -= fullName.length() + 1;
+    }
+    std::unique_ptr<unsigned char[]> inBuffer(new unsigned char[inSize]);
+    m_File.read(reinterpret_cast<char*>(inBuffer.get()), inSize);
+    BSAULong length = 0UL;
+    boost::shared_array<unsigned char> buffer = decompress(inBuffer.get(), inSize, result, length);
+    if (result == ERROR_NONE) {
+      outFile.write(reinterpret_cast<char*>(buffer.get()), length);
+    }
   }
 
   return result;
@@ -486,8 +755,7 @@ EErrorCode Archive::extract(File::Ptr file, const char *outputDirectory) const
   }
 
   EErrorCode result = ERROR_NONE;
-  if ((defaultCompressed() && !file->compressToggled()) ||
-      (!defaultCompressed() && file->compressToggled())) {
+  if (compressed(file)) {
     result = extractCompressed(file, outputFile);
   } else {
     result = extractDirect(file, outputFile);
@@ -510,18 +778,68 @@ void Archive::readFiles(std::queue<FileInfo> &queue, boost::mutex &mutex,
     size_t size = static_cast<size_t>(fileInfo.file->m_FileSize);
 
     m_File.seekg(fileInfo.file->m_DataOffset);
-    if (namePrefixed()) {
-      std::string fullName = readBString(m_File);
-      if (size <= fullName.length()) {
+    if (m_Type != TYPE_FALLOUT4) {
+      if (namePrefixed()) {
+        std::string fullName = readBString(m_File);
+        if (size <= fullName.length()) {
 #pragma message("report error!")
-        continue;
+          continue;
+        }
+        size -= fullName.length() + 1;
       }
-      size -= fullName.length() + 1;
-    }
-    fileInfo.data = std::make_pair(
+      if (m_Type == TYPE_SKYRIMSE && compressed(fileInfo.file)) {
+        fileInfo.file->m_UncompressedFileSize = readType<BSAULong>(m_File);
+        size -= 4;
+      }
+      fileInfo.data = std::make_pair(
         boost::shared_array<unsigned char>(new unsigned char[size]),
         static_cast<BSAULong>(size));
-    m_File.read(reinterpret_cast<char*>(fileInfo.data.first.get()), size);
+      m_File.read(reinterpret_cast<char*>(fileInfo.data.first.get()), size);
+    } else {
+      if (!fileInfo.file->m_TextureChunks.size()) {
+        if (size == 0) size = fileInfo.file->m_UncompressedFileSize;
+        fileInfo.data = std::make_pair(
+          boost::shared_array<unsigned char>(new unsigned char[size]),
+          static_cast<BSAULong>(size));
+        m_File.read(reinterpret_cast<char*>(fileInfo.data.first.get()), size);
+      } else {
+        fileInfo.file->m_UncompressedFileSize = 0L;
+        BSAULong totalSize = 0U;
+        for (BSAUInt i = 0; i < fileInfo.file->m_TextureChunks.size(); ++i) {
+          totalSize += fileInfo.file->m_TextureChunks[i].unpackedSize;
+        }
+        char *chunkData = new char[totalSize];
+        BSAULong currentPos = 0U;
+        for (BSAUInt i = 0; i < fileInfo.file->m_TextureChunks.size(); ++i) {
+          BSAULong length = fileInfo.file->m_TextureChunks[i].unpackedSize;
+          if (fileInfo.file->m_TextureChunks[i].packedSize > 0) {
+            char *chunk = new char[fileInfo.file->m_TextureChunks[i].packedSize];
+            m_File.read(chunk, fileInfo.file->m_TextureChunks[i].packedSize);
+            EErrorCode result = ERROR_NONE;
+            try {
+              boost::shared_array<unsigned char> unpackedChunk = decompress(reinterpret_cast<unsigned char*>(chunk), fileInfo.file->m_TextureChunks[i].packedSize, result, length);
+              delete[] chunk;
+              memcpy(chunkData + currentPos, reinterpret_cast<char *>(unpackedChunk.get()), length);
+              unpackedChunk.reset();
+            } catch (const std::exception &) {
+#pragma message("report error!")
+              continue;
+            }
+            fileInfo.file->m_UncompressedFileSize += length;
+          } else {
+            char *chunk = new char[length];
+            m_File.read(chunk, length);
+            memcpy(chunkData + currentPos, chunk, length);
+          }
+          currentPos += length;
+        }
+        fileInfo.file->m_FileSize = 0;
+        fileInfo.data = std::make_pair(
+          boost::shared_array<unsigned char>(reinterpret_cast<unsigned char *>(chunkData)),
+          static_cast<BSAULong>(totalSize)
+        );
+      }
+    }
 
     {
       boost::interprocess::scoped_lock<boost::mutex> lock(mutex);
@@ -571,27 +889,97 @@ void Archive::extractFiles(const std::string &targetDirectory,
 
     std::ofstream outputFile(fileName.c_str(), fstream::out | fstream::binary | fstream::trunc);
 
-    if (compressed(fileInfo.file)) {
-      if (!outputFile.is_open()) {
+    if (!outputFile.is_open()) {
 #pragma message("report error!")
-        continue;
-        //return ERROR_ACCESSFAILED;
+      continue;
+      //return ERROR_ACCESSFAILED;
+    }
+
+    if (m_Type != TYPE_FALLOUT4) {
+      // BSA extraction
+      if (compressed(fileInfo.file)) {
+        // Decompress data
+        if (m_Type != TYPE_SKYRIMSE) {
+          // Oblivion - Skyrim LE use gzip compression
+          EErrorCode result = ERROR_NONE;
+          try {
+            BSAULong length = 0UL;
+            boost::shared_array<unsigned char> buffer = decompress(dataBuffer.first.get(), dataBuffer.second,
+              result, length);
+            dataBuffer.first.reset();
+            if (buffer.get() != nullptr) {
+              outputFile.write(reinterpret_cast<char*>(buffer.get()), length);
+              buffer.reset();
+            }
+          }
+          catch (const std::exception &) {
+#pragma message("report error!")
+            continue;
+          }
+        } else {
+          // Skyrim SE uses LZ4 Frame compression
+          char *outBuffer = new char[fileInfo.file->m_UncompressedFileSize];
+
+          LZ4F_decompressionContext_t dcContext = nullptr;
+          LZ4F_decompressOptions_t options = {};
+          LZ4F_createDecompressionContext(&dcContext, LZ4F_VERSION);
+          size_t outSize = fileInfo.file->m_UncompressedFileSize;
+          size_t inSize = dataBuffer.second;
+
+          LZ4F_decompress(dcContext, outBuffer, &outSize, dataBuffer.first.get(), &inSize, &options);
+          outputFile.write(outBuffer, fileInfo.file->m_UncompressedFileSize);
+          delete[] outBuffer;
+          dataBuffer.first.reset();
+        }
+      } else {
+        // No compression - just write the data.
+        outputFile.write(reinterpret_cast<char*>(dataBuffer.first.get()), dataBuffer.second);
+        dataBuffer.first.reset();
+      }
+    } else {
+      // BA2 format
+      if (fileInfo.file->m_TextureChunks.size()) {
+        // Texture stream format - requires building the header data for the DDS file
+        bool isDX10 = false;
+        DirectX::DDS_HEADER_DXT10 DX10HeaderData = {};
+        DirectX::DDS_HEADER DDSHeaderData = getDDSHeader(fileInfo.file, DX10HeaderData, isDX10);
+
+        outputFile.write("DDS ", 4);
+        char *DDSHeader = new char[sizeof(DDSHeaderData)];
+        memcpy(DDSHeader, &DDSHeaderData, sizeof(DDSHeaderData));
+        outputFile.write(DDSHeader, sizeof(DDSHeaderData));
+        delete DDSHeader;
+
+        if (isDX10) {
+          // This format requires DX10 header info
+          getDX10Header(DX10HeaderData, fileInfo.file, DDSHeaderData);
+
+          char *DX10Header = new char[sizeof(DX10HeaderData)];
+          memcpy(DX10Header, &DX10HeaderData, sizeof(DX10HeaderData));
+          outputFile.write(DX10Header, sizeof(DX10HeaderData));
+          delete DX10Header;
+        }
       }
 
       EErrorCode result = ERROR_NONE;
       try {
-        BSAULong length = 0UL;
-        boost::shared_array<unsigned char> buffer = decompress(dataBuffer.first.get(), dataBuffer.second + sizeof(BSAULong),
-                                                               result, length);
-        if (buffer.get() != nullptr) {
-          outputFile.write(reinterpret_cast<char*>(buffer.get()), length);
+        BSAULong length = fileInfo.file->m_UncompressedFileSize;
+        if (fileInfo.file->m_FileSize > 0 && !fileInfo.file->m_TextureChunks.size()) {
+          BSAULong length = fileInfo.file->m_UncompressedFileSize;
+          boost::shared_array<unsigned char> buffer = decompress(dataBuffer.first.get(), dataBuffer.second,
+            result, length);
+          if (buffer.get() != nullptr) {
+            outputFile.write(reinterpret_cast<char*>(buffer.get()), length);
+            buffer.reset();
+          }
+        } else {
+          outputFile.write(reinterpret_cast<char*>(dataBuffer.first.get()), dataBuffer.second);
         }
+        dataBuffer.first.reset();
       } catch (const std::exception &) {
 #pragma message("report error!")
         continue;
       }
-    } else {
-      outputFile.write(reinterpret_cast<char*>(dataBuffer.first.get()), dataBuffer.second);
     }
   }
 }
@@ -666,10 +1054,11 @@ EErrorCode Archive::extractAll(const char *outputDirectory,
 }
 
 
-bool Archive::compressed(const File::Ptr &file)
+bool Archive::compressed(const File::Ptr &file) const
 {
-  return ((defaultCompressed() && !file->compressToggled()) ||
-          (!defaultCompressed() && file->compressToggled()));
+  if (m_Type != TYPE_FALLOUT4)
+    return file->compressToggled() ^ defaultCompressed();
+  return (file->m_FileSize > 0);
 }
 
 File::Ptr Archive::createFile(const std::string &name, const std::string &sourceName,

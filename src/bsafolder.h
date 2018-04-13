@@ -118,12 +118,19 @@ private:
   void addFolderInt(Folder::Ptr folder);
 
   /**
+   * recursive function that returns an existing folder match or generates the structure for a new folder
+   * @param folder folder to find or create
+   * @return the final determined / generated Folder
+   */
+  Folder::Ptr addOrFindFolderInt(Folder *folder);
+
+  /**
    * Add a new folder to the structure.
    * It will automatically be added to the correct sub-folder if applicable.
    */
   Folder::Ptr addFolder(std::fstream &file, BSAUInt fileNamesLength, BSAUInt &endPos, ArchiveType type);
 
-  Folder::Ptr addFolderFromFile(char * filePath);
+  Folder::Ptr addFolderFromFile(std::string filePath, BSAUInt size, BSAHash offset, BSAUInt uncompressedSize, FO4TextureHeader header, std::vector<FO4TextureChunk> &texChunks);
 
   bool resolveFileNames(std::fstream &file, bool testHashes);
 
