@@ -178,10 +178,27 @@ EErrorCode Archive::read(const char* fileName, bool testHashes)
       } else if (strcmp(header.archType, "DX10") == 0) {
         m_File.seekg(24, std::ios::beg);
         for (unsigned int i = 0; i < header.fileCount; ++i) {
-          FO4TextureHeader texHeader = readType<FO4TextureHeader>(m_File);
+          FO4TextureHeader texHeader;
+          texHeader.nameHash = readType<BSAUInt>(m_File);
+          m_File.read(texHeader.extension, 4);
+          texHeader.dirHash = readType<BSAUInt>(m_File);
+          texHeader.unknown1 = readType<BSAUChar>(m_File);
+          texHeader.chunkNumber = readType<BSAUChar>(m_File);
+          texHeader.chunkHeaderSize = readType<BSAUShort>(m_File);
+          texHeader.height = readType<BSAUShort>(m_File);
+          texHeader.width = readType<BSAUShort>(m_File);
+          texHeader.mipCount = readType<BSAUChar>(m_File);
+          texHeader.format = static_cast<DXGI_FORMAT>(readType<BSAUShort>(m_File));
+          texHeader.unknown2 = readType<BSAUChar>(m_File);
           std::vector<FO4TextureChunk> chunks;
           for (unsigned int j = 0; j < texHeader.chunkNumber; ++j) {
-            FO4TextureChunk chunk = readType<FO4TextureChunk>(m_File);
+            FO4TextureChunk chunk;
+            chunk.offset = readType<BSAHash>(m_File);
+            chunk.packedSize = readType<BSAUInt>(m_File);
+            chunk.unpackedSize = readType<BSAUInt>(m_File);
+            chunk.startMip = readType<BSAUShort>(m_File);
+            chunk.endMip = readType<BSAUShort>(m_File);
+            chunk.unknown = readType<BSAUInt>(m_File);
             chunks.push_back(chunk);
           }
           Folder::Ptr newDir = m_RootFolder->addFolderFromFile(fileNames[i], chunks[0].packedSize, chunks[0].offset, chunks[0].unpackedSize, texHeader, chunks);

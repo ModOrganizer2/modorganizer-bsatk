@@ -37,6 +37,17 @@ typedef unsigned int BSAUInt;
 typedef unsigned long BSAULong;
 typedef unsigned long long BSAHash;
 
+#else // WIN32
+#include <stdint.h>
+
+typedef unsigned char BSAUChar;
+typedef unsigned short BSAUShort;
+typedef unsigned int BSAUInt;
+typedef unsigned long BSAULong;
+typedef unsigned long long BSAHash;
+
+#endif // WIN32
+
 enum ArchiveType {
   TYPE_MORROWIND,
   TYPE_OBLIVION,
@@ -65,7 +76,7 @@ struct FO4TextureHeader
   BSAUShort width;
   BSAUChar mipCount;
   DXGI_FORMAT format;
-  BSAUShort unknown2;
+  BSAUChar unknown2;
 };
 
 struct FO4TextureChunk
@@ -77,17 +88,6 @@ struct FO4TextureChunk
   BSAUShort	endMip;
   BSAUInt	unknown;
 };
-
-#else // WIN32
-
-#include <stdint.h>
-
-
-typedef uint32_t BSAULong;
-typedef uint64_t BSAHash;
-
-#endif // WIN32
-
 
 template <typename T> static T readType(std::fstream &file)
 {
