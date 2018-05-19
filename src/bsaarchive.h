@@ -218,6 +218,9 @@ private:
                     boost::interprocess::interprocess_semaphore &bufferCount,
                     boost::interprocess::interprocess_semaphore &queueFree,
                     int totalFiles, bool overwrite, int &filesDone);
+
+  void cleanFolder(Folder::Ptr folder);
+
 private:
 
   mutable std::fstream m_File;

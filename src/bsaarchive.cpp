@@ -57,6 +57,10 @@ Archive::~Archive()
   if (m_File.is_open()) {
     m_File.close();
   }
+  std::vector<Folder::Ptr> folders;
+  m_RootFolder->collectFolders(folders);
+  cleanFolder(m_RootFolder);
+  m_RootFolder.reset();
 }
 
 
@@ -569,14 +573,14 @@ EErrorCode Archive::extractDirect(File::Ptr file, std::ofstream &outFile) const
       char *DDSHeader = new char[sizeof(DDSHeaderData)];
       memcpy(DDSHeader, &DDSHeaderData, sizeof(DDSHeaderData));
       outFile.write(DDSHeader, sizeof(DDSHeaderData));
-      delete DDSHeader;
+      delete[] DDSHeader;
 
       if (isDX10) {
         getDX10Header(DX10HeaderData, file, DDSHeaderData);
         char *DX10Header = new char[sizeof(DX10HeaderData)];
         memcpy(DX10Header, &DX10HeaderData, sizeof(DX10HeaderData));
         outFile.write(DX10Header, sizeof(DX10HeaderData));
-        delete DX10Header;
+        delete[] DX10Header;
       }
 
       for (BSAUInt i = 0; i < file->m_TextureChunks.size(); ++i) {
@@ -695,14 +699,14 @@ EErrorCode Archive::extractCompressed(File::Ptr file, std::ofstream &outFile) co
       char *DDSHeader = new char[sizeof(DDSHeaderData)];
       memcpy(DDSHeader, &DDSHeaderData, sizeof(DDSHeaderData));
       outFile.write(DDSHeader, sizeof(DDSHeaderData));
-      delete DDSHeader;
+      delete[] DDSHeader;
 
       if (isDX10) {
         getDX10Header(DX10HeaderData, file, DDSHeaderData);
         char *DX10Header = new char[sizeof(DX10HeaderData)];
         memcpy(DX10Header, &DX10HeaderData, sizeof(DX10HeaderData));
         outFile.write(DX10Header, sizeof(DX10HeaderData));
-        delete DX10Header;
+        delete[] DX10Header;
       }
 
       for (BSAUInt i = 0; i < file->m_TextureChunks.size(); ++i) {
@@ -923,7 +927,6 @@ void Archive::extractFiles(const std::string &targetDirectory,
             BSAULong length = 0UL;
             boost::shared_array<unsigned char> buffer = decompress(dataBuffer.first.get(), dataBuffer.second,
               result, length);
-            dataBuffer.first.reset();
             if (buffer.get() != nullptr) {
               outputFile.write(reinterpret_cast<char*>(buffer.get()), length);
               buffer.reset();
@@ -931,6 +934,8 @@ void Archive::extractFiles(const std::string &targetDirectory,
           }
           catch (const std::exception &) {
 #pragma message("report error!")
+            dataBuffer.first.reset();
+            fileInfo.data.first.reset();
             continue;
           }
         } else {
@@ -945,13 +950,12 @@ void Archive::extractFiles(const std::string &targetDirectory,
 
           LZ4F_decompress(dcContext, outBuffer, &outSize, dataBuffer.first.get(), &inSize, &options);
           outputFile.write(outBuffer, fileInfo.file->m_UncompressedFileSize);
+          LZ4F_freeDecompressionContext(dcContext);
           delete[] outBuffer;
-          dataBuffer.first.reset();
         }
       } else {
         // No compression - just write the data.
         outputFile.write(reinterpret_cast<char*>(dataBuffer.first.get()), dataBuffer.second);
-        dataBuffer.first.reset();
       }
     } else {
       // BA2 format
@@ -965,7 +969,7 @@ void Archive::extractFiles(const std::string &targetDirectory,
         char *DDSHeader = new char[sizeof(DDSHeaderData)];
         memcpy(DDSHeader, &DDSHeaderData, sizeof(DDSHeaderData));
         outputFile.write(DDSHeader, sizeof(DDSHeaderData));
-        delete DDSHeader;
+        delete[] DDSHeader;
 
         if (isDX10) {
           // This format requires DX10 header info
@@ -974,7 +978,7 @@ void Archive::extractFiles(const std::string &targetDirectory,
           char *DX10Header = new char[sizeof(DX10HeaderData)];
           memcpy(DX10Header, &DX10HeaderData, sizeof(DX10HeaderData));
           outputFile.write(DX10Header, sizeof(DX10HeaderData));
-          delete DX10Header;
+          delete[] DX10Header;
         }
       }
 
@@ -992,12 +996,15 @@ void Archive::extractFiles(const std::string &targetDirectory,
         } else {
           outputFile.write(reinterpret_cast<char*>(dataBuffer.first.get()), dataBuffer.second);
         }
-        dataBuffer.first.reset();
       } catch (const std::exception &) {
 #pragma message("report error!")
+        dataBuffer.first.reset();
+        fileInfo.data.first.reset();
         continue;
       }
     }
+    dataBuffer.first.reset();
+    fileInfo.data.first.reset();
   }
 }
 
@@ -1085,5 +1092,18 @@ File::Ptr Archive::createFile(const std::string &name, const std::string &source
                             defaultCompressed() != compressed));
 }
 
+void Archive::cleanFolder(Folder::Ptr folder) {
+  std::vector<Folder::Ptr> folders;
+  folder->collectFolders(folders);
+  for (Folder::Ptr subFolder : folders) {
+    cleanFolder(subFolder);
+  }
+  std::vector<File::Ptr> files;
+  folder->collectFiles(files);
+  for (File::Ptr file : files) {
+    file.reset();
+  }
+  folder.reset();
+}
 
 } // namespace BSA
