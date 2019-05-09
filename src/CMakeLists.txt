@@ -37,7 +37,7 @@ FIND_PACKAGE(zlib REQUIRED)
 INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS}
                     ${ZLIB_INCLUDE_DIRS}
                     ${ZLIB_INCLUDE_DIRS}/build # in case of an out-of-source build
-                    ${LZ4_ROOT}/include)
+                    ${LZ4_ROOT}/lib)
 
 LINK_DIRECTORIES(${LZ4_ROOT}/dll)
 
