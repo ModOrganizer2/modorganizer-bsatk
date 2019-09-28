@@ -233,7 +233,7 @@ Folder::Ptr Folder::addFolder(std::fstream &file, BSAUInt fileNamesLength, BSAUI
 
 Folder::Ptr Folder::addFolderFromFile(std::string filePath, BSAUInt size, BSAHash offset, BSAUInt uncompressedSize, FO4TextureHeader header, std::vector<FO4TextureChunk> &texChunks)
 {
-  std::experimental::filesystem::path file(filePath);
+  std::filesystem::path file(filePath);
 
   Folder *tempFolder = new Folder();
 
