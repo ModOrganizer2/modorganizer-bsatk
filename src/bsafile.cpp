@@ -46,8 +46,9 @@ bool ByOffset(const File::Ptr &LHS, const File::Ptr &RHS)
 static const unsigned long CHUNK_SIZE = 128 * 1024;
 
 
-File::File(std::fstream &file, Folder *folder)
-  : m_Folder(folder), m_New(false)
+File::File(std::fstream &file, Folder *folder) :
+  m_Folder(folder), m_New(false), m_FileSize(0), m_UncompressedFileSize(0),
+  m_ToggleCompressedWrite(false), m_DataOffsetWrite(0)
 {
   m_NameHash = readType<BSAHash>(file);
   m_FileSize = readType<BSAULong>(file);
@@ -58,10 +59,12 @@ File::File(std::fstream &file, Folder *folder)
 
 File::File(const std::string &name, Folder *folder,
   BSAULong fileSize, BSAHash dataOffset, BSAULong uncompressedFileSize,
-  FO4TextureHeader header, std::vector<FO4TextureChunk> &texChunks)
-  : m_Folder(folder), m_New(false), m_Name(name),
-  m_FileSize(fileSize), m_UncompressedFileSize(uncompressedFileSize),
-  m_DataOffset(dataOffset), m_TextureHeader(header), m_TextureChunks(texChunks)
+  FO4TextureHeader header, std::vector<FO4TextureChunk> &texChunks) :
+    m_Folder(folder), m_New(false), m_Name(name),
+    m_FileSize(fileSize), m_UncompressedFileSize(uncompressedFileSize),
+    m_DataOffset(dataOffset), m_TextureHeader(header),
+    m_ToggleCompressedWrite(false), m_TextureChunks(texChunks),
+    m_DataOffsetWrite(0)
 {
   m_NameHash = calculateBSAHash(name);
   m_ToggleCompressed = false;
@@ -73,8 +76,10 @@ File::File(const std::string &name, Folder *folder,
 File::File(const std::string &name, const std::string &sourceFile,
            Folder *folder, bool toggleCompressed)
   : m_Folder(folder), m_New(true), m_Name(name),
-    m_ToggleCompressed(toggleCompressed), m_SourceFile(sourceFile),
-    m_ToggleCompressedWrite(toggleCompressed)
+    m_FileSize(0), m_UncompressedFileSize(0),
+    m_DataOffset(0), m_ToggleCompressed(toggleCompressed),
+    m_SourceFile(sourceFile), m_ToggleCompressedWrite(toggleCompressed),
+    m_DataOffsetWrite(0)
 {
   m_NameHash = calculateBSAHash(name);
 }
