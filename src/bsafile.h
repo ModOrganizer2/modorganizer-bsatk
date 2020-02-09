@@ -65,6 +65,8 @@ public:
    */
   BSAULong getFileSize() const { return m_FileSize; }
 
+  BSAULong getUncompressedFileSize() const { return m_UncompressedFileSize; }
+
 private:
 
   // copy constructor not implemented
