@@ -1,11 +1,9 @@
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
+cmake_minimum_required(VERSION 3.16)
 
-ADD_COMPILE_OPTIONS($<$<CXX_COMPILER_ID:MSVC>:/MP> $<$<CXX_COMPILER_ID:MSVC>:$<$<CONFIG:RELEASE>:/O2>> $<$<CXX_COMPILER_ID:MSVC>:$<$<CONFIG:RELWITHDEBINFO>:/O2>>)
+project(bsatk)
+set(project_type lib)
+set(enable_warnings OFF)
+set(enable_permissive ON)
 
-PROJECT(bsatk)
-
-SET(DEPENDENCIES_DIR CACHE PATH "")
-
-LIST(APPEND CMAKE_PREFIX_PATH ${LZ4_ROOT}/bin)
-
-ADD_SUBDIRECTORY(src)
+include(../cmake_common/project.cmake)
+add_subdirectory(src)
