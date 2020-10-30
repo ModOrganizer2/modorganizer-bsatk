@@ -174,7 +174,8 @@ EErrorCode Archive::read(const char* fileName, bool testHashes)
           BSAUInt packedSize = readType<BSAUInt>(m_File);
           BSAUInt unpackedSize = readType<BSAUInt>(m_File);
           m_File.seekg(4, std::ios::cur);
-          Folder::Ptr newDir = m_RootFolder->addFolderFromFile(fileNames[i], packedSize, offset, unpackedSize, {}, std::vector<FO4TextureChunk>());
+          std::vector<FO4TextureChunk> dummy;
+          Folder::Ptr newDir = m_RootFolder->addFolderFromFile(fileNames[i], packedSize, offset, unpackedSize, {}, dummy);
           if (std::find(folders.begin(), folders.end(), newDir) == folders.end())
             folders.push_back(newDir);
           delete[] extension;
@@ -231,7 +232,8 @@ EErrorCode Archive::read(const char* fileName, bool testHashes)
         m_File.read(filePath, index);
         filePath[index] = '\0';
 
-        Folder::Ptr newDir = m_RootFolder->addFolderFromFile(filePath, fileSizeOffset[i].size, dataOffset + fileSizeOffset[i].offset, 0, {}, std::vector<FO4TextureChunk>());
+        std::vector<FO4TextureChunk> dummy;
+        Folder::Ptr newDir = m_RootFolder->addFolderFromFile(filePath, fileSizeOffset[i].size, dataOffset + fileSizeOffset[i].offset, 0, {}, dummy);
         if (std::find(folders.begin(), folders.end(), newDir) == folders.end())
           folders.push_back(newDir);
 
