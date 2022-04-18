@@ -1,14 +1,10 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(bsatk)
-set(project_type lib)
-set(enable_warnings OFF)
-set(enable_permissive ON)
-set(create_translations OFF)
-
 if(DEFINED DEPENDENCIES_DIR)
-	include(${DEPENDENCIES_DIR}/modorganizer_super/cmake_common/project.cmake)
+	include(${DEPENDENCIES_DIR}/modorganizer_super/cmake_common/mo2.cmake)
 else()
-	include(../cmake_common/project.cmake)
+	include(${CMAKE_CURRENT_LIST_DIR}/../cmake_common/mo2.cmake)
 endif()
+
+project(bsatk)
 add_subdirectory(src)

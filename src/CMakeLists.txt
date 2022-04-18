@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
-if(DEFINED DEPENDENCIES_DIR)
-	include(${DEPENDENCIES_DIR}/modorganizer_super/cmake_common/src.cmake)
-else()
-	include(../../cmake_common/src.cmake)
-endif()
+
+add_library(bsatk STATIC)
+mo2_configure_library(bsatk
+    WARNINGS OFF PERMISSIVE ON
+    PUBLIC_DEPENDS boost boost::thread
+    PRIVATE_DEPENDS zlib lz4)
+mo2_install_target(bsatk)
