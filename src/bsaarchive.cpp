@@ -72,6 +72,7 @@ ArchiveType Archive::typeFromID(BSAULong typeID)
     case 0x68: return TYPE_FALLOUT3;
     case 0x69: return TYPE_SKYRIMSE;
     case 0x01: return TYPE_FALLOUT4;
+    case 0x02: return TYPE_STARFIELD;
     default: throw data_invalid_exception(makeString("invalid type %d", typeID));
   }
 }
@@ -85,6 +86,7 @@ BSAULong Archive::typeToID(ArchiveType type)
     case TYPE_FALLOUT3: return 0x68;
     case TYPE_SKYRIMSE: return 0x69;
     case TYPE_FALLOUT4: return 0x01;
+    case TYPE_STARFIELD: return 0x02;
     default: throw data_invalid_exception(makeString("invalid type %d", type));
   }
 }
@@ -101,15 +103,14 @@ Archive::Header Archive::readHeader(std::fstream &infile)
 
   if (result.fileIdentifier != 0x00000100) {
     ArchiveType type = typeFromID(readType<BSAUInt>(infile));
-    if (type == TYPE_FALLOUT4) {
+    if (type == TYPE_FALLOUT4 || type == TYPE_STARFIELD) {
       result.type = type;
       infile.read(result.archType, 4);
       result.archType[4] = '\0';
       result.fileCount = readType<BSAUInt>(infile);
       result.nameTableOffset = readType<BSAHash>(infile);
       result.archiveFlags = FLAG_HASDIRNAMES | FLAG_HASFILENAMES;
-    }
-    else {
+    } else {
       result.type = type;
       result.offset = readType<BSAUInt>(infile);
       result.archiveFlags = readType<BSAUInt>(infile);
