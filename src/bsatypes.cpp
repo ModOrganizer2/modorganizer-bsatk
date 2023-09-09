@@ -19,22 +19,20 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
 #include "bsatypes.h"
-#include <fstream>
-#include <string>
+#include <algorithm>
 #include <climits>
 #include <cstring>
-#include <algorithm>
-
+#include <fstream>
+#include <string>
 
 using std::fstream;
-
 
 /*#ifndef MAX_PATH
 #define MAX_PATH PATH_MAX
 #endif // MAX_PATH
 */
 
-std::string readBString(fstream &file)
+std::string readBString(fstream& file)
 {
   unsigned char length = readType<unsigned char>(file);
   char buffer[256];
@@ -47,17 +45,15 @@ std::string readBString(fstream &file)
   return std::string(buffer);
 }
 
-
-void writeBString(fstream &file, const std::string &string)
+void writeBString(fstream& file, const std::string& string)
 {
-  unsigned int length
-      = std::min<unsigned int>(static_cast<unsigned int>(string.length()), 255);
+  unsigned int length =
+      std::min<unsigned int>(static_cast<unsigned int>(string.length()), 255);
   writeType<unsigned char>(file, length + 1);
   file.write(string.c_str(), length + 1);
 }
 
-
-std::string readZString(fstream &file)
+std::string readZString(fstream& file)
 {
   char buffer[FILENAME_MAX];
   memset(buffer, '\0', FILENAME_MAX);
@@ -67,10 +63,7 @@ std::string readZString(fstream &file)
   return std::string(buffer);
 }
 
-
-void writeZString(fstream &file, const std::string &string)
+void writeZString(fstream& file, const std::string& string)
 {
   file.write(string.c_str(), string.length() + 1);
 }
-
-

@@ -21,9 +21,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #ifndef BSAEXCEPTION_H
 #define BSAEXCEPTION_H
 
-
 #include <string>
-
 
 /**
  * construct a string from a printf-style format
@@ -31,27 +29,23 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  * @param ... variable parameter list
  * @return the constructed string
  */
-std::string makeString(const char *format, ...);
-
+std::string makeString(const char* format, ...);
 
 /**
  * custom exception to be thrown when invalid data is encountered
  */
-class data_invalid_exception : public std::exception {
+class data_invalid_exception : public std::exception
+{
 
 public:
-
-  explicit data_invalid_exception(const std::string &message);
+  explicit data_invalid_exception(const std::string& message);
 
   virtual ~data_invalid_exception() throw() {}
 
-  virtual const char *what() const throw() { return m_Message.c_str(); }
+  virtual const char* what() const throw() { return m_Message.c_str(); }
 
 private:
-
   std::string m_Message;
-
 };
 
-#endif // BSAEXCEPTION_H
-
+#endif  // BSAEXCEPTION_H

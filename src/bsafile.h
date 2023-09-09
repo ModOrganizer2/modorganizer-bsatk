@@ -21,40 +21,36 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #ifndef BSAFILE_H
 #define BSAFILE_H
 
-
-#include "filehash.h"
 #include "errorcodes.h"
+#include "filehash.h"
 #include <fstream>
-#include <vector>
 #include <memory>
+#include <vector>
 
-
-namespace BSA {
-
+namespace BSA
+{
 
 class Folder;
 
-class File {
+class File
+{
 
   friend class Folder;
   friend class Archive;
 
 public:
-
   typedef std::shared_ptr<File> Ptr;
-  friend bool ByOffset(const File::Ptr &LHS, const File::Ptr &RHS);
+  friend bool ByOffset(const File::Ptr& LHS, const File::Ptr& RHS);
 
 private:
-
-  static const unsigned int SIZEMASK = 0x3fffffff;
+  static const unsigned int SIZEMASK     = 0x3fffffff;
   static const unsigned int COMPRESSMASK = 0xC0000000;
 
 public:
-
   /**
    * @return the name of the file
    */
-  const std::string &getName() const { return m_Name; }
+  const std::string& getName() const { return m_Name; }
   /**
    * @return full path of this file within the archive
    */
@@ -68,9 +64,8 @@ public:
   BSAULong getUncompressedFileSize() const { return m_UncompressedFileSize; }
 
 private:
-
   // copy constructor not implemented
-  File(const File &reference);
+  File(const File& reference);
 
   // assignment operator not implemented
   File& operator=(const File& reference);
@@ -81,7 +76,7 @@ private:
    * @param folder the folder to add the file to
    * @param type the archive type we're parsing
    */
-  File(std::fstream &file, Folder *folder);
+  File(std::fstream& file, Folder* folder);
 
   /**
    * construct file from morrowind BSA or BA2
@@ -91,9 +86,9 @@ private:
    * @param dataOffset the offset of the file data in the archive
    * @param toggleCompressed the detected compression mode of the archive
    */
-  File(const std::string &name, Folder *folder,
-    BSAULong fileSizee, BSAHash dataOffset, BSAULong uncompressedFileSize,
-    FO4TextureHeader header, std::vector<FO4TextureChunk> &texChunks);
+  File(const std::string& name, Folder* folder, BSAULong fileSizee, BSAHash dataOffset,
+       BSAULong uncompressedFileSize, FO4TextureHeader header,
+       std::vector<FO4TextureChunk>& texChunks);
 
   /**
    * construct from loose file
@@ -103,8 +98,8 @@ private:
    * @param toggleCompressed if true, the default compression mode of the
    *                         archive is overwritten
    */
-  File(const std::string &name, const std::string &sourceFile,
-       Folder *folder, bool toggleCompressed);
+  File(const std::string& name, const std::string& sourceFile, Folder* folder,
+       bool toggleCompressed);
 
   /**
    * @return true if its compression mode for this file differs from the archive default
@@ -116,16 +111,15 @@ private:
    *         an archive
    */
   BSAHash getDataOffset() const { return m_DataOffset; }
-  void writeHeader(std::fstream &file) const;
-  EErrorCode writeData(std::fstream &sourceArchive, std::fstream &targetArchive) const;
+  void writeHeader(std::fstream& file) const;
+  EErrorCode writeData(std::fstream& sourceArchive, std::fstream& targetArchive) const;
 
   void setFileSize(BSAULong fileSize) { m_FileSize = fileSize; }
 
-  void readFileName(std::fstream &file, bool testHashes);
+  void readFileName(std::fstream& file, bool testHashes);
 
 private:
-
-  Folder *m_Folder;
+  Folder* m_Folder;
   bool m_New;
 
   BSAHash m_NameHash;
@@ -143,10 +137,8 @@ private:
   mutable BSAULong m_DataOffsetWrite;
 };
 
+extern bool ByOffset(const File::Ptr& LHS, const File::Ptr& RHS);
 
-extern bool ByOffset(const File::Ptr &LHS, const File::Ptr &RHS);
+}  // namespace BSA
 
-
-} // namespace BSA
-
-#endif // BSAFILE_H
+#endif  // BSAFILE_H

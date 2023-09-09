@@ -18,17 +18,12 @@ License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-
 #ifndef FILEHASH_H
 #define FILEHASH_H
 
-
-#include <string>
 #include "bsatypes.h"
+#include <string>
 
+BSAHash calculateBSAHash(const std::string& fileName);
 
-BSAHash calculateBSAHash(const std::string &fileName);
-
-
-#endif // FILEHASH_H
-
+#endif  // FILEHASH_H

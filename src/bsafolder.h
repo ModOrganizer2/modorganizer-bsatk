@@ -18,34 +18,32 @@ License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-
 #ifndef BSAFOLDER_H
 #define BSAFOLDER_H
 
-
-#include "bsatypes.h"
 #include "bsafile.h"
+#include "bsatypes.h"
 #include "errorcodes.h"
+#include <memory>
 #include <string>
 #include <vector>
-#include <memory>
 
+namespace BSA
+{
 
-namespace BSA {
-
-class Folder {
+class Folder
+{
 
   friend class Archive;
 
 public:
-
   typedef std::shared_ptr<Folder> Ptr;
 
 public:
   /**
    * @return name of this folder
    */
-  const std::string &getName() const { return m_Name; }
+  const std::string& getName() const { return m_Name; }
   /**
    * @return full path to this folder
    */
@@ -53,7 +51,10 @@ public:
   /**
    * @return the number of subfolders within this folder
    */
-  unsigned int getNumSubFolders() const { return static_cast<unsigned int>(m_SubFolders.size()); }
+  unsigned int getNumSubFolders() const
+  {
+    return static_cast<unsigned int>(m_SubFolders.size());
+  }
   /**
    * @param index index of a subfolder within this folder
    * @return a descriptor for the subfolder
@@ -78,14 +79,14 @@ public:
    * adds a new file to the folder
    * @param file the new file to add
    */
-  void addFile(const File::Ptr &file) { m_Files.push_back(file); }
+  void addFile(const File::Ptr& file) { m_Files.push_back(file); }
   /**
    * add an empty folder as a subfolder to this one.
    * @param folderName name of the new folder
    * @return pointer to the new folder
    * @note this folder will not be written to the bsa if it has no content
    */
-  Folder::Ptr addFolder(const std::string &folderName);
+  Folder::Ptr addFolder(const std::string& folderName);
 
 private:
   /**
@@ -94,22 +95,26 @@ private:
   Folder();
 
   // copy constructor not implemented
-  Folder(const Folder &reference);
+  Folder(const Folder& reference);
 
   // assignment operator - not implemented
-  Folder &operator=(const Folder &reference);
+  Folder& operator=(const Folder& reference);
 
   /**
-   * factory function to read a folder object from disc. This also reads part of the information about the files within
+   * factory function to read a folder object from disc. This also reads part of the
+   * information about the files within
    * @param file file stream to read from, already placed at the correct position
-   * @param fileNamesLength length of the file names list. This is required to correctly calculate offsets
+   * @param fileNamesLength length of the file names list. This is required to correctly
+   * calculate offsets
    * @param endPos position inside file where the last folder header ends. This is
-   *               updated by the constructor so that it is the correct value after all folders are read
+   *               updated by the constructor so that it is the correct value after all
+   * folders are read
    * @return the new Folder object
    */
-  Folder::Ptr readFolder(std::fstream &file, BSAUInt fileNamesLength, BSAUInt &endPos);
+  Folder::Ptr readFolder(std::fstream& file, BSAUInt fileNamesLength, BSAUInt& endPos);
 
-  Folder::Ptr readFolderSE(std::fstream &file, BSAUInt fileNamesLength, BSAUInt &endPos);
+  Folder::Ptr readFolderSE(std::fstream& file, BSAUInt fileNamesLength,
+                           BSAUInt& endPos);
 
   /**
    * recursive function to determine the correct subfolder to place the new
@@ -118,32 +123,36 @@ private:
   void addFolderInt(Folder::Ptr folder);
 
   /**
-   * recursive function that returns an existing folder match or generates the structure for a new folder
+   * recursive function that returns an existing folder match or generates the structure
+   * for a new folder
    * @param folder folder to find or create
    * @return the final determined / generated Folder
    */
-  Folder::Ptr addOrFindFolderInt(Folder *folder);
+  Folder::Ptr addOrFindFolderInt(Folder* folder);
 
   /**
    * Add a new folder to the structure.
    * It will automatically be added to the correct sub-folder if applicable.
    */
-  Folder::Ptr addFolder(std::fstream &file, BSAUInt fileNamesLength, BSAUInt &endPos, ArchiveType type);
+  Folder::Ptr addFolder(std::fstream& file, BSAUInt fileNamesLength, BSAUInt& endPos,
+                        ArchiveType type);
 
-  Folder::Ptr addFolderFromFile(std::string filePath, BSAUInt size, BSAHash offset, BSAUInt uncompressedSize, FO4TextureHeader header, std::vector<FO4TextureChunk> &texChunks);
+  Folder::Ptr addFolderFromFile(std::string filePath, BSAUInt size, BSAHash offset,
+                                BSAUInt uncompressedSize, FO4TextureHeader header,
+                                std::vector<FO4TextureChunk>& texChunks);
 
-  bool resolveFileNames(std::fstream &file, bool testHashes);
+  bool resolveFileNames(std::fstream& file, bool testHashes);
 
-  void writeHeader(std::fstream &file) const;
-  void writeData(std::fstream &file, BSAULong fileNamesLength) const;
-  EErrorCode writeFileData(std::fstream &sourceFile,
-                           std::fstream &targetFile) const;
-  void collectFolders(std::vector<Folder::Ptr> &folderList) const;
-  void collectFiles(std::vector<File::Ptr> &fileList) const;
-  void collectFileNames(std::vector<std::string> &nameList) const;
-  void collectFolderNames(std::vector<std::string> &nameList) const;
+  void writeHeader(std::fstream& file) const;
+  void writeData(std::fstream& file, BSAULong fileNamesLength) const;
+  EErrorCode writeFileData(std::fstream& sourceFile, std::fstream& targetFile) const;
+  void collectFolders(std::vector<Folder::Ptr>& folderList) const;
+  void collectFiles(std::vector<File::Ptr>& fileList) const;
+  void collectFileNames(std::vector<std::string>& nameList) const;
+  void collectFolderNames(std::vector<std::string>& nameList) const;
+
 private:
-  Folder *m_Parent;
+  Folder* m_Parent;
   BSAHash m_NameHash;
   std::string m_Name;
   BSAULong m_FileCount;
@@ -154,7 +163,6 @@ private:
   mutable BSAULong m_OffsetWrite;
 };
 
-} // namespace BSA
+}  // namespace BSA
 
 #endif /* BSAFOLDER_H */
-

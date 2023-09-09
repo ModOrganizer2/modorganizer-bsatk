@@ -1,4 +1,4 @@
-/* 
+/*
  * File:   bsatk.h
  * Author: tannin
  *
@@ -8,11 +8,8 @@
 #ifndef BSATK_H
 #define BSATK_H
 
-
 #include "bsaarchive.h"
-#include "bsafolder.h"
 #include "bsafile.h"
-
+#include "bsafolder.h"
 
 #endif /* BSATK_H */
-
