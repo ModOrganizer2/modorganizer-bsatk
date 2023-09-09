@@ -777,7 +777,7 @@ EErrorCode Archive::extractCompressed(File::Ptr file, std::ofstream& outFile) co
         if (m_Type == TYPE_STARFIELD_LZ4_TEXTURE) {
           char* unpackedChunk = new char[length];
           LZ4_decompress_safe(reinterpret_cast<char*>(chunk.get()), unpackedChunk,
-                              fileInfo.file->m_TextureChunks[i].packedSize, length);
+                              file->m_TextureChunks[i].packedSize, length);
           outFile.write(unpackedChunk, length);
           delete[] unpackedChunk;
         } else {
