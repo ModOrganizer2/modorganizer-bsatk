@@ -770,22 +770,29 @@ EErrorCode Archive::extractCompressed(File::Ptr file, std::ofstream& outFile) co
 
       for (BSAUInt i = 0; i < file->m_TextureChunks.size(); ++i) {
         BSAULong length = file->m_TextureChunks[i].unpackedSize;
-        std::unique_ptr<unsigned char[]> chunk(
-            new unsigned char[file->m_TextureChunks[i].packedSize]);
-        m_File.read(reinterpret_cast<char*>(chunk.get()),
-                    file->m_TextureChunks[i].packedSize);
-        if (m_Type == TYPE_STARFIELD_LZ4_TEXTURE) {
-          char* unpackedChunk = new char[length];
-          LZ4_decompress_safe(reinterpret_cast<char*>(chunk.get()), unpackedChunk,
-                              file->m_TextureChunks[i].packedSize, length);
-          outFile.write(unpackedChunk, length);
-          delete[] unpackedChunk;
-        } else {
-          boost::shared_array<unsigned char> unpackedChunk = decompress(
-              chunk.get(), file->m_TextureChunks[i].packedSize, result, length);
-          if (result == ERROR_NONE) {
-            outFile.write(reinterpret_cast<char*>(unpackedChunk.get()), length);
+        if (file->m_TextureChunks[i].packedSize > 0) {
+          unsigned char* chunk = new unsigned char[file->m_TextureChunks[i].packedSize];
+          m_File.read(reinterpret_cast<char*>(chunk),
+                      file->m_TextureChunks[i].packedSize);
+          if (m_Type == TYPE_STARFIELD_LZ4_TEXTURE) {
+            char* unpackedChunk = new char[length];
+            LZ4_decompress_safe(reinterpret_cast<char*>(chunk), unpackedChunk,
+                                file->m_TextureChunks[i].packedSize, length);
+            outFile.write(unpackedChunk, length);
+            delete[] unpackedChunk;
+          } else {
+            boost::shared_array<unsigned char> unpackedChunk =
+                decompress(chunk, file->m_TextureChunks[i].packedSize, result, length);
+            if (result == ERROR_NONE) {
+              outFile.write(reinterpret_cast<char*>(unpackedChunk.get()), length);
+            }
           }
+          delete[] chunk;
+        } else {
+          char* chunk = new char[length];
+          m_File.read(chunk, length);
+          outFile.write(chunk, length);
+          delete[] chunk;
         }
       }
     }
@@ -918,7 +925,6 @@ void Archive::readFiles(std::queue<FileInfo>& queue, boost::mutex& mutex,
                 boost::shared_array<unsigned char> unpackedChunk = decompress(
                     reinterpret_cast<unsigned char*>(chunk),
                     fileInfo.file->m_TextureChunks[i].packedSize, result, length);
-                delete[] chunk;
                 memcpy(chunkData + currentPos,
                        reinterpret_cast<char*>(unpackedChunk.get()), length);
                 unpackedChunk.reset();
@@ -933,11 +939,13 @@ void Archive::readFiles(std::queue<FileInfo>& queue, boost::mutex& mutex,
               memcpy(chunkData + currentPos, unpackedChunk, length);
               delete[] unpackedChunk;
             }
+            delete[] chunk;
             fileInfo.file->m_UncompressedFileSize += length;
           } else {
             char* chunk = new char[length];
             m_File.read(chunk, length);
             memcpy(chunkData + currentPos, chunk, length);
+            delete[] chunk;
           }
           currentPos += length;
         }
