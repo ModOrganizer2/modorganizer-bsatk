@@ -18,15 +18,13 @@ License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-
 #ifndef BSATYPES_H
 #define BSATYPES_H
 
-
+#include "DDS.h"
+#include "bsaexception.h"
 #include <fstream>
 #include <string>
-#include "bsaexception.h"
-#include "DDS.h"
 
 #ifdef WIN32
 #include <Windows.h>
@@ -37,7 +35,7 @@ typedef unsigned int BSAUInt;
 typedef unsigned long BSAULong;
 typedef unsigned long long BSAHash;
 
-#else // WIN32
+#else  // WIN32
 #include <stdint.h>
 
 typedef unsigned char BSAUChar;
@@ -46,16 +44,19 @@ typedef unsigned int BSAUInt;
 typedef unsigned long BSAULong;
 typedef unsigned long long BSAHash;
 
-#endif // WIN32
+#endif  // WIN32
 
-enum ArchiveType {
+enum ArchiveType
+{
   TYPE_MORROWIND,
   TYPE_OBLIVION,
   TYPE_FALLOUT3,
   TYPE_FALLOUTNV = TYPE_FALLOUT3,
-  TYPE_SKYRIM = TYPE_FALLOUT3,
+  TYPE_SKYRIM    = TYPE_FALLOUT3,
   TYPE_SKYRIMSE,
-  TYPE_FALLOUT4
+  TYPE_FALLOUT4,
+  TYPE_STARFIELD,
+  TYPE_STARFIELD_LZ4_TEXTURE
 };
 
 struct MorrowindFileOffset
@@ -66,7 +67,8 @@ struct MorrowindFileOffset
 
 struct FO4TextureHeader
 {
-  BSAUInt nameHash;;
+  BSAUInt nameHash;
+  ;
   char extension[4];
   BSAUInt dirHash;
   BSAUChar unknown1;
@@ -81,17 +83,19 @@ struct FO4TextureHeader
 
 struct FO4TextureChunk
 {
-  BSAHash	offset;
-  BSAUInt	packedSize;
-  BSAUInt	unpackedSize;
-  BSAUShort	startMip;
-  BSAUShort	endMip;
-  BSAUInt	unknown;
+  BSAHash offset;
+  BSAUInt packedSize;
+  BSAUInt unpackedSize;
+  BSAUShort startMip;
+  BSAUShort endMip;
+  BSAUInt unknown;
 };
 
-template <typename T> static T readType(std::fstream &file)
+template <typename T>
+static T readType(std::fstream& file)
 {
-  union {
+  union
+  {
     char buffer[sizeof(T)];
     T value;
   };
@@ -101,25 +105,23 @@ template <typename T> static T readType(std::fstream &file)
   return value;
 }
 
-
-template <typename T> static void writeType(std::fstream &file, const T &value)
+template <typename T>
+static void writeType(std::fstream& file, const T& value)
 {
-  union {
+  union
+  {
     char buffer[sizeof(T)];
     T valueTemp;
   };
   valueTemp = value;
-  
+
   file.write(buffer, sizeof(T));
 }
 
+std::string readBString(std::fstream& file);
+void writeBString(std::fstream& file, const std::string& string);
 
-std::string readBString(std::fstream &file);
-void writeBString(std::fstream &file, const std::string &string);
+std::string readZString(std::fstream& file);
+void writeZString(std::fstream& file, const std::string& string);
 
-std::string readZString(std::fstream &file);
-void writeZString(std::fstream &file, const std::string &string);
-
-
-#endif // BSATYPES_H
-
+#endif  // BSATYPES_H

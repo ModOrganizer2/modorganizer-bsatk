@@ -18,14 +18,13 @@ License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-
 #include "bsaexception.h"
 #include <cstdarg>
 #include <stdio.h>
 
-#pragma warning( disable : 4996 )
+#pragma warning(disable : 4996)
 
-std::string makeString(const char *format, ...)
+std::string makeString(const char* format, ...)
 {
   va_list argList;
   va_start(argList, format);
@@ -34,8 +33,6 @@ std::string makeString(const char *format, ...)
   return std::string(buffer);
 }
 
-
-data_invalid_exception::data_invalid_exception(const std::string &message)
-  : m_Message(message)
-{
-}
+data_invalid_exception::data_invalid_exception(const std::string& message)
+    : m_Message(message)
+{}

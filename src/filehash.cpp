@@ -18,22 +18,17 @@ License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-
 #include "filehash.h"
-#include <climits>
-#include <cstring>
-#include <cstdlib>
 #include <algorithm>
-
+#include <climits>
+#include <cstdlib>
+#include <cstring>
 
 #ifndef MAX_PATH
 #define MAX_PATH PATH_MAX
-#endif // MAX_PATH
+#endif  // MAX_PATH
 
-
-
-
-static unsigned long genHashInt(const unsigned char *pos, const unsigned char *end)
+static unsigned long genHashInt(const unsigned char* pos, const unsigned char* end)
 {
   unsigned long hash = 0;
   for (; pos < end; ++pos) {
@@ -49,7 +44,7 @@ static unsigned long genHashInt(const unsigned char *pos, const unsigned char *e
  * @return
  * @note the hash calculated for folders seem to be wrong
  */
-BSAHash calculateBSAHash(const std::string &fileName)
+BSAHash calculateBSAHash(const std::string& fileName)
 {
   char fileNameLower[FILENAME_MAX + 1];
   int i = 0;
@@ -61,7 +56,7 @@ BSAHash calculateBSAHash(const std::string &fileName)
   }
   fileNameLower[i] = '\0';
 
-  unsigned char *fileNameLowerU = reinterpret_cast<unsigned char*>(fileNameLower);
+  unsigned char* fileNameLowerU = reinterpret_cast<unsigned char*>(fileNameLower);
 
   size_t length = strlen(fileNameLower);
 
@@ -73,17 +68,14 @@ BSAHash calculateBSAHash(const std::string &fileName)
   size_t extLen = strlen(ext);
   length -= extLen;
 
-  unsigned char *extU = reinterpret_cast<unsigned char*>(ext);
+  unsigned char* extU = reinterpret_cast<unsigned char*>(ext);
 
   BSAHash hash1 = 0ULL;
 
   if (length > 0) {
-    hash1 = static_cast<BSAHash>(
-           fileNameLowerU[length - 1]
-         | ((length > 2 ? fileNameLowerU[length - 2] : 0) << 8)
-         | (length << 16)
-         | (fileNameLowerU[0] << 24)
-        );
+    hash1 = static_cast<BSAHash>(fileNameLowerU[length - 1] |
+                                 ((length > 2 ? fileNameLowerU[length - 2] : 0) << 8) |
+                                 (length << 16) | (fileNameLowerU[0] << 24));
   }
 
   if (extLen > 0) {
@@ -97,8 +89,8 @@ BSAHash calculateBSAHash(const std::string &fileName)
       hash1 |= 0x80000000;
     }
 
-    BSAHash hash2 = static_cast<BSAHash>(genHashInt(fileNameLowerU + 1, extU - 2))
-                  + static_cast<BSAHash>(genHashInt(extU, extU + strlen(ext)));
+    BSAHash hash2 = static_cast<BSAHash>(genHashInt(fileNameLowerU + 1, extU - 2)) +
+                    static_cast<BSAHash>(genHashInt(extU, extU + strlen(ext)));
 
     hash1 |= (hash2 & 0xFFFFFFFF) << 32;
   }

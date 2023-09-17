@@ -18,15 +18,14 @@ License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-
 #ifndef ERRORCODES_H
 #define ERRORCODES_H
 
+namespace BSA
+{
 
-namespace BSA {
-
-
-enum EErrorCode {
+enum EErrorCode
+{
   ERROR_NONE,
   ERROR_INVALIDHASHES,
   ERROR_FILENOTFOUND,
@@ -39,5 +38,4 @@ enum EErrorCode {
 
 };
 
-#endif // ERRORCODES_H
-
+#endif  // ERRORCODES_H

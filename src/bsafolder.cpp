@@ -18,36 +18,34 @@ License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include <limits.h>
 #include <filesystem>
+#include <limits.h>
 
-#include "bsafolder.h"
-#include "bsafile.h"
 #include "bsaarchive.h"
 #include "bsaexception.h"
-
+#include "bsafile.h"
+#include "bsafolder.h"
 
 using std::fstream;
 
-namespace BSA {
-
-
-Folder::Folder()
-  : m_Parent(nullptr), m_Name()
+namespace BSA
 {
-  m_NameHash = calculateBSAHash(m_Name);
+
+Folder::Folder() : m_Parent(nullptr), m_Name()
+{
+  m_NameHash  = calculateBSAHash(m_Name);
   m_FileCount = 0;
-  m_Offset = ULONG_MAX;
+  m_Offset    = ULONG_MAX;
 }
 
-
-Folder::Ptr Folder::readFolder(std::fstream &file, BSAUInt fileNamesLength, BSAUInt &endPos)
+Folder::Ptr Folder::readFolder(std::fstream& file, BSAUInt fileNamesLength,
+                               BSAUInt& endPos)
 {
   Folder::Ptr result(new Folder());
-  result->m_NameHash = readType<BSAHash>(file);
+  result->m_NameHash  = readType<BSAHash>(file);
   result->m_FileCount = readType<unsigned long>(file);
-  result->m_Offset = readType<unsigned long>(file);
-  std::streamoff pos = file.tellg();
+  result->m_Offset    = readType<unsigned long>(file);
+  std::streamoff pos  = file.tellg();
 
   file.seekg(result->m_Offset - fileNamesLength, fstream::beg);
 
@@ -66,13 +64,14 @@ Folder::Ptr Folder::readFolder(std::fstream &file, BSAUInt fileNamesLength, BSAU
   return result;
 }
 
-Folder::Ptr Folder::readFolderSE(std::fstream &file, BSAUInt fileNamesLength, BSAUInt &endPos)
+Folder::Ptr Folder::readFolderSE(std::fstream& file, BSAUInt fileNamesLength,
+                                 BSAUInt& endPos)
 {
   Folder::Ptr result(new Folder());
-  result->m_NameHash = readType<BSAHash>(file);
+  result->m_NameHash  = readType<BSAHash>(file);
   result->m_FileCount = readType<BSAUInt>(file);
   readType<BSAUInt>(file);
-  result->m_Offset = readType<BSAHash>(file);
+  result->m_Offset   = readType<BSAHash>(file);
   std::streamoff pos = file.tellg();
 
   file.seekg(result->m_Offset - fileNamesLength, fstream::beg);
@@ -92,15 +91,14 @@ Folder::Ptr Folder::readFolderSE(std::fstream &file, BSAUInt fileNamesLength, BS
   return result;
 }
 
-void Folder::writeHeader(std::fstream &file) const
+void Folder::writeHeader(std::fstream& file) const
 {
   writeType<BSAHash>(file, m_NameHash);
   writeType<BSAULong>(file, static_cast<BSAULong>(m_Files.size()));
   writeType<BSAULong>(file, m_OffsetWrite);
 }
 
-
-void Folder::writeData(std::fstream &file, BSAULong fileNamesLength) const
+void Folder::writeData(std::fstream& file, BSAULong fileNamesLength) const
 {
   m_OffsetWrite = static_cast<BSAULong>(file.tellp()) + fileNamesLength;
   writeBString(file, getFullPath());
@@ -110,9 +108,8 @@ void Folder::writeData(std::fstream &file, BSAULong fileNamesLength) const
   }
 }
 
-
-EErrorCode Folder::writeFileData(std::fstream &sourceFile,
-                                 std::fstream &targetFile) const
+EErrorCode Folder::writeFileData(std::fstream& sourceFile,
+                                 std::fstream& targetFile) const
 {
   for (std::vector<File::Ptr>::const_iterator iter = m_Files.begin();
        iter != m_Files.end(); ++iter) {
@@ -123,7 +120,6 @@ EErrorCode Folder::writeFileData(std::fstream &sourceFile,
   }
   return ERROR_NONE;
 }
-
 
 std::string Folder::getFullPath() const
 {
@@ -140,19 +136,17 @@ std::string Folder::getFullPath() const
   }
 }
 
-
 void Folder::addFolderInt(Folder::Ptr folder)
 {
   for (std::vector<Folder::Ptr>::iterator iter = m_SubFolders.begin();
        iter != m_SubFolders.end(); ++iter) {
     // for folder to be a subfolder of iter, the name of iter has to be the
-    // first path component of folders path and there has to be room left for a 
+    // first path component of folders path and there has to be room left for a
     // backslash and the name of folder itself
     size_t nameLength = (*iter)->m_Name.length();
     if ((folder->m_Name.length() > (*iter)->m_Name.length()) &&
         (folder->m_Name.compare(0, (*iter)->m_Name.length(), (*iter)->m_Name) == 0) &&
-        ((folder->m_Name[nameLength] == '\\') ||
-         (folder->m_Name[nameLength] == '/'))) {
+        ((folder->m_Name[nameLength] == '\\') || (folder->m_Name[nameLength] == '/'))) {
       // remove the matched part of the path and recurse
       folder->m_Name = folder->m_Name.substr((*iter)->m_Name.length() + 1);
       (*iter)->addFolderInt(folder);
@@ -170,25 +164,24 @@ void Folder::addFolderInt(Folder::Ptr folder)
     // add dummy folder for the next path component
     Folder::Ptr dummy(new Folder);
     dummy->m_Parent = this;
-    dummy->m_Name = folder->m_Name.substr(0, pos);
-    folder->m_Name = folder->m_Name.substr(pos + 1);
+    dummy->m_Name   = folder->m_Name.substr(0, pos);
+    folder->m_Name  = folder->m_Name.substr(pos + 1);
     dummy->addFolderInt(folder);
     m_SubFolders.push_back(dummy);
   }
 }
 
-Folder::Ptr Folder::addOrFindFolderInt(Folder *folder)
+Folder::Ptr Folder::addOrFindFolderInt(Folder* folder)
 {
   for (std::vector<Folder::Ptr>::iterator iter = m_SubFolders.begin();
-    iter != m_SubFolders.end(); ++iter) {
+       iter != m_SubFolders.end(); ++iter) {
     // for folder to be a subfolder of iter, the name of iter has to be the
-    // first path component of folders path and there has to be room left for a 
+    // first path component of folders path and there has to be room left for a
     // backslash and the name of folder itself
     size_t nameLength = (*iter)->m_Name.length();
     if ((folder->m_Name.length() > (*iter)->m_Name.length()) &&
-      (folder->m_Name.compare(0, (*iter)->m_Name.length(), (*iter)->m_Name) == 0) &&
-      ((folder->m_Name[nameLength] == '\\') ||
-      (folder->m_Name[nameLength] == '/'))) {
+        (folder->m_Name.compare(0, (*iter)->m_Name.length(), (*iter)->m_Name) == 0) &&
+        ((folder->m_Name[nameLength] == '\\') || (folder->m_Name[nameLength] == '/'))) {
       // remove the matched part of the path and recurse
       folder->m_Name = folder->m_Name.substr((*iter)->m_Name.length() + 1);
       return (*iter)->addOrFindFolderInt(folder);
@@ -210,16 +203,17 @@ Folder::Ptr Folder::addOrFindFolderInt(Folder *folder)
   } else {
     // add dummy folder for the next path component
     Folder::Ptr dummy(new Folder);
-    dummy->m_Parent = this;
-    dummy->m_Name = folder->m_Name.substr(0, pos);
-    folder->m_Name = folder->m_Name.substr(pos + 1);
+    dummy->m_Parent    = this;
+    dummy->m_Name      = folder->m_Name.substr(0, pos);
+    folder->m_Name     = folder->m_Name.substr(pos + 1);
     Folder::Ptr result = dummy->addOrFindFolderInt(folder);
     m_SubFolders.push_back(dummy);
     return result;
   }
 }
 
-Folder::Ptr Folder::addFolder(std::fstream &file, BSAUInt fileNamesLength, BSAUInt &endPos, ArchiveType type)
+Folder::Ptr Folder::addFolder(std::fstream& file, BSAUInt fileNamesLength,
+                              BSAUInt& endPos, ArchiveType type)
 {
   Folder::Ptr temp;
   if (type == ArchiveType::TYPE_SKYRIMSE)
@@ -231,15 +225,18 @@ Folder::Ptr Folder::addFolder(std::fstream &file, BSAUInt fileNamesLength, BSAUI
   return temp;
 }
 
-Folder::Ptr Folder::addFolderFromFile(std::string filePath, BSAUInt size, BSAHash offset, BSAUInt uncompressedSize, FO4TextureHeader header, std::vector<FO4TextureChunk> &texChunks)
+Folder::Ptr Folder::addFolderFromFile(std::string filePath, BSAUInt size,
+                                      BSAHash offset, BSAUInt uncompressedSize,
+                                      FO4TextureHeader header,
+                                      std::vector<FO4TextureChunk>& texChunks)
 {
   std::filesystem::path file(filePath);
 
-  Folder *tempFolder = new Folder();
+  Folder* tempFolder = new Folder();
 
   tempFolder->m_NameHash = calculateBSAHash(filePath);
-  tempFolder->m_Name = file.parent_path().string();
-  Folder::Ptr result = addOrFindFolderInt(tempFolder);
+  tempFolder->m_Name     = file.parent_path().string();
+  Folder::Ptr result     = addOrFindFolderInt(tempFolder);
 
   if (result.get() != tempFolder) {
     delete tempFolder;
@@ -248,16 +245,17 @@ Folder::Ptr Folder::addFolderFromFile(std::string filePath, BSAUInt size, BSAHas
   std::string fileName = file.filename().string();
 
   result->m_FileCount++;
-  result->m_Files.push_back(File::Ptr(new File(fileName, result.get(), size, offset, uncompressedSize, header, texChunks)));
+  result->m_Files.push_back(File::Ptr(new File(fileName, result.get(), size, offset,
+                                               uncompressedSize, header, texChunks)));
 
   return result;
 }
 
-bool Folder::resolveFileNames(std::fstream &file, bool testHashes)
+bool Folder::resolveFileNames(std::fstream& file, bool testHashes)
 {
   bool hashesValid = true;
-  for (std::vector<File::Ptr>::iterator iter = m_Files.begin();
-       iter != m_Files.end(); ++iter) {
+  for (std::vector<File::Ptr>::iterator iter = m_Files.begin(); iter != m_Files.end();
+       ++iter) {
     try {
       (*iter)->readFileName(file, testHashes);
     } catch (const std::exception&) {
@@ -287,18 +285,16 @@ const File::Ptr Folder::getFile(unsigned int index) const
   return m_Files.at(index);
 }
 
-
-Folder::Ptr Folder::addFolder(const std::string &folderName)
+Folder::Ptr Folder::addFolder(const std::string& folderName)
 {
   Folder::Ptr newFolder(new Folder);
-  newFolder->m_Name = folderName;
+  newFolder->m_Name   = folderName;
   newFolder->m_Parent = this;
   m_SubFolders.push_back(newFolder);
   return newFolder;
 }
 
-
-void Folder::collectFolders(std::vector<Folder::Ptr> &folderList) const
+void Folder::collectFolders(std::vector<Folder::Ptr>& folderList) const
 {
   for (std::vector<Folder::Ptr>::const_iterator iter = m_SubFolders.begin();
        iter != m_SubFolders.end(); ++iter) {
@@ -309,8 +305,7 @@ void Folder::collectFolders(std::vector<Folder::Ptr> &folderList) const
   }
 }
 
-
-void Folder::collectFiles(std::vector<File::Ptr> &fileList) const
+void Folder::collectFiles(std::vector<File::Ptr>& fileList) const
 {
   for (std::vector<File::Ptr>::const_iterator fileIter = m_Files.begin();
        fileIter != m_Files.end(); ++fileIter) {
@@ -322,8 +317,7 @@ void Folder::collectFiles(std::vector<File::Ptr> &fileList) const
   }
 }
 
-
-void Folder::collectFileNames(std::vector<std::string> &nameList) const
+void Folder::collectFileNames(std::vector<std::string>& nameList) const
 {
   for (std::vector<File::Ptr>::const_iterator iter = m_Files.begin();
        iter != m_Files.end(); ++iter) {
@@ -335,7 +329,7 @@ void Folder::collectFileNames(std::vector<std::string> &nameList) const
   }
 }
 
-void Folder::collectFolderNames(std::vector<std::string> &nameList) const
+void Folder::collectFolderNames(std::vector<std::string>& nameList) const
 {
   if (m_Files.size() != 0) {
     nameList.push_back(getFullPath());
@@ -346,4 +340,4 @@ void Folder::collectFolderNames(std::vector<std::string> &nameList) const
   }
 }
 
-} // namespace BSA
+}  // namespace BSA

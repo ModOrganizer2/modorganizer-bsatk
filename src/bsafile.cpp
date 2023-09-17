@@ -20,66 +20,59 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "bsafile.h"
 #include "bsaexception.h"
-#include "filehash.h"
 #include "bsafolder.h"
+#include "filehash.h"
+#include <algorithm>
 #include <climits>
 #include <cstring>
-#include <stdexcept>
-#include <algorithm>
 #include <memory>
-
+#include <stdexcept>
 
 using std::fstream;
 using std::ifstream;
 using std::ofstream;
 
+namespace BSA
+{
 
-namespace BSA {
-
-
-bool ByOffset(const File::Ptr &LHS, const File::Ptr &RHS)
+bool ByOffset(const File::Ptr& LHS, const File::Ptr& RHS)
 {
   return LHS->getDataOffset() < RHS->getDataOffset();
 }
 
-
 static const unsigned long CHUNK_SIZE = 128 * 1024;
 
-
-File::File(std::fstream &file, Folder *folder) :
-  m_Folder(folder), m_New(false), m_FileSize(0), m_UncompressedFileSize(0),
-  m_ToggleCompressedWrite(false), m_DataOffsetWrite(0)
+File::File(std::fstream& file, Folder* folder)
+    : m_Folder(folder), m_New(false), m_FileSize(0), m_UncompressedFileSize(0),
+      m_ToggleCompressedWrite(false), m_DataOffsetWrite(0)
 {
-  m_NameHash = readType<BSAHash>(file);
-  m_FileSize = readType<BSAULong>(file);
-  m_DataOffset = readType<BSAULong>(file);
+  m_NameHash         = readType<BSAHash>(file);
+  m_FileSize         = readType<BSAULong>(file);
+  m_DataOffset       = readType<BSAULong>(file);
   m_ToggleCompressed = m_FileSize & COMPRESSMASK;
-  m_FileSize = m_FileSize & SIZEMASK;
+  m_FileSize         = m_FileSize & SIZEMASK;
 }
 
-File::File(const std::string &name, Folder *folder,
-  BSAULong fileSize, BSAHash dataOffset, BSAULong uncompressedFileSize,
-  FO4TextureHeader header, std::vector<FO4TextureChunk> &texChunks) :
-    m_Folder(folder), m_New(false), m_Name(name),
-    m_FileSize(fileSize), m_UncompressedFileSize(uncompressedFileSize),
-    m_DataOffset(dataOffset), m_TextureHeader(header),
-    m_ToggleCompressedWrite(false), m_TextureChunks(texChunks),
-    m_DataOffsetWrite(0)
+File::File(const std::string& name, Folder* folder, BSAULong fileSize,
+           BSAHash dataOffset, BSAULong uncompressedFileSize, FO4TextureHeader header,
+           std::vector<FO4TextureChunk>& texChunks)
+    : m_Folder(folder), m_New(false), m_Name(name), m_FileSize(fileSize),
+      m_UncompressedFileSize(uncompressedFileSize), m_DataOffset(dataOffset),
+      m_TextureHeader(header), m_ToggleCompressedWrite(false),
+      m_TextureChunks(texChunks), m_DataOffsetWrite(0)
 {
-  m_NameHash = calculateBSAHash(name);
+  m_NameHash         = calculateBSAHash(name);
   m_ToggleCompressed = false;
   if (m_FileSize > 0 && m_UncompressedFileSize > 0)
     m_ToggleCompressed = true;
 }
 
-
-File::File(const std::string &name, const std::string &sourceFile,
-           Folder *folder, bool toggleCompressed)
-  : m_Folder(folder), m_New(true), m_Name(name),
-    m_FileSize(0), m_UncompressedFileSize(0),
-    m_DataOffset(0), m_ToggleCompressed(toggleCompressed),
-    m_SourceFile(sourceFile), m_ToggleCompressedWrite(toggleCompressed),
-    m_DataOffsetWrite(0)
+File::File(const std::string& name, const std::string& sourceFile, Folder* folder,
+           bool toggleCompressed)
+    : m_Folder(folder), m_New(true), m_Name(name), m_FileSize(0),
+      m_UncompressedFileSize(0), m_DataOffset(0), m_ToggleCompressed(toggleCompressed),
+      m_SourceFile(sourceFile), m_ToggleCompressedWrite(toggleCompressed),
+      m_DataOffsetWrite(0)
 {
   m_NameHash = calculateBSAHash(name);
 }
@@ -89,8 +82,7 @@ std::string File::getFilePath() const
   return m_Folder->getFullPath() + "\\" + m_Name;
 }
 
-
-void File::writeHeader(fstream &file) const
+void File::writeHeader(fstream& file) const
 {
   writeType<BSAHash>(file, m_NameHash);
   BSAULong size = m_FileSize;
@@ -101,9 +93,7 @@ void File::writeHeader(fstream &file) const
   writeType<BSAULong>(file, m_DataOffsetWrite);
 }
 
-
-EErrorCode File::writeData(fstream &sourceArchive,
-                           fstream &targetArchive) const
+EErrorCode File::writeData(fstream& sourceArchive, fstream& targetArchive) const
 {
   m_DataOffsetWrite = static_cast<BSAULong>(targetArchive.tellp());
   EErrorCode result = ERROR_NONE;
@@ -134,7 +124,7 @@ EErrorCode File::writeData(fstream &sourceArchive,
       return ERROR_SOURCEFILEMISSING;
     }
     sourceFile.seekg(0, fstream::end);
-    m_FileSize = static_cast<BSAULong>(sourceFile.tellg());
+    m_FileSize             = static_cast<BSAULong>(sourceFile.tellg());
     unsigned long sizeLeft = m_FileSize;
     sourceFile.seekg(0, fstream::beg);
     while (sizeLeft > 0) {
@@ -143,21 +133,20 @@ EErrorCode File::writeData(fstream &sourceArchive,
       targetArchive.write(inBuffer.get(), chunkSize);
       sizeLeft -= chunkSize;
     }
-
   }
   return result;
 }
 
-
-void File::readFileName(fstream &file, bool testHashes)
+void File::readFileName(fstream& file, bool testHashes)
 {
   m_Name = readZString(file);
   if (testHashes) {
     if (calculateBSAHash(m_Name) != m_NameHash) {
-      throw data_invalid_exception(makeString("invalid name hash for \"%s\" (%lx vs %lx)",
-        m_Name.c_str(), calculateBSAHash(m_Name), m_NameHash));
+      throw data_invalid_exception(
+          makeString("invalid name hash for \"%s\" (%lx vs %lx)", m_Name.c_str(),
+                     calculateBSAHash(m_Name), m_NameHash));
     }
   }
 }
 
-}
+}  // namespace BSA
