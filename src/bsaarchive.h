@@ -112,6 +112,10 @@ public:
    * @return ERROR_NONE on success or an error code
    */
   EErrorCode extract(File::Ptr file, const char* outputDirectory) const;
+  /**
+   * @return archive flags
+   */
+  BSAULong getFlags() const { return m_ArchiveFlags; }
 
   /**
    * extract all files. this is potentially faster than iterating over all files and
