@@ -68,7 +68,6 @@ struct MorrowindFileOffset
 struct FO4TextureHeader
 {
   BSAUInt nameHash;
-  ;
   char extension[4];
   BSAUInt dirHash;
   BSAUChar unknown1;
@@ -78,6 +77,7 @@ struct FO4TextureHeader
   BSAUShort width;
   BSAUChar mipCount;
   DXGI_FORMAT format;
+  bool isCubemap;
   BSAUChar unknown2;
 };
 
