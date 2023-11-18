@@ -222,8 +222,9 @@ EErrorCode Archive::read(const char* fileName, bool testHashes)
           texHeader.height          = readType<BSAUShort>(m_File);
           texHeader.width           = readType<BSAUShort>(m_File);
           texHeader.mipCount        = readType<BSAUChar>(m_File);
-          texHeader.format   = static_cast<DXGI_FORMAT>(readType<BSAUShort>(m_File));
-          texHeader.unknown2 = readType<BSAUChar>(m_File);
+          texHeader.format          = static_cast<DXGI_FORMAT>(readType<BSAUChar>(m_File));
+          texHeader.isCubemap       = readType<bool>(m_File);
+          texHeader.unknown2        = readType<BSAUChar>(m_File);
           std::vector<FO4TextureChunk> chunks;
           for (unsigned int j = 0; j < texHeader.chunkNumber; ++j) {
             FO4TextureChunk chunk;
@@ -505,7 +506,7 @@ DirectX::DDS_HEADER Archive::getDDSHeader(File::Ptr file,
   DDSHeaderData.ddspf.size  = sizeof(DirectX::DDS_PIXELFORMAT);
   DDSHeaderData.caps        = DDS_SURFACE_FLAGS_TEXTURE | DDS_SURFACE_FLAGS_MIPMAP;
 
-  if (file->m_TextureHeader.unknown2 == 2049)
+  if (file->m_TextureHeader.isCubemap)
     DDSHeaderData.caps2 = DDS_CUBEMAP_ALLFACES;
 
   bool supported = true;
@@ -538,9 +539,14 @@ DirectX::DDS_HEADER Archive::getDDSHeader(File::Ptr file,
         file->m_TextureHeader.width * file->m_TextureHeader.height;
     break;
 
+  case DXGI_FORMAT_BC4_SNORM:
+    DDSHeaderData.ddspf = DirectX::DDSPF_BC4_SNORM;
+    DDSHeaderData.pitchOrLinearSize =
+        file->m_TextureHeader.width * file->m_TextureHeader.height;
+    break;
+
   case DXGI_FORMAT_BC5_UNORM:
-    DDSHeaderData.ddspf.flags  = DDS_FOURCC;
-    DDSHeaderData.ddspf.fourCC = MAKEFOURCC('A', 'T', 'I', '2');
+    DDSHeaderData.ddspf = DirectX::DDSPF_BC5_UNORM;
     DDSHeaderData.pitchOrLinearSize =
         file->m_TextureHeader.width * file->m_TextureHeader.height;
     break;
@@ -562,25 +568,37 @@ DirectX::DDS_HEADER Archive::getDDSHeader(File::Ptr file,
     break;
 
   case DXGI_FORMAT_R8G8B8A8_UNORM:
-    DDSHeaderData.ddspf = DirectX::DDSPF_A8R8G8B8;
-    DDSHeaderData.pitchOrLinearSize =
-        file->m_TextureHeader.width * file->m_TextureHeader.height * 4;  // 32bpp
-    break;
-
-  case DXGI_FORMAT_B8G8R8A8_UNORM:
     DDSHeaderData.ddspf = DirectX::DDSPF_A8B8G8R8;
     DDSHeaderData.pitchOrLinearSize =
         file->m_TextureHeader.width * file->m_TextureHeader.height * 4;  // 32bpp
     break;
 
+  case DXGI_FORMAT_B8G8R8A8_UNORM:
+    DDSHeaderData.ddspf = DirectX::DDSPF_A8R8G8B8;
+    DDSHeaderData.pitchOrLinearSize =
+        file->m_TextureHeader.width * file->m_TextureHeader.height * 4;  // 32bpp
+    break;
+
   case DXGI_FORMAT_B8G8R8X8_UNORM:
-    DDSHeaderData.ddspf = DirectX::DDSPF_X8B8G8R8;
+    DDSHeaderData.ddspf = DirectX::DDSPF_X8R8G8B8;
     break;
 
   case DXGI_FORMAT_R8_UNORM:
     DDSHeaderData.ddspf = DirectX::DDSPF_L8;
     DDSHeaderData.pitchOrLinearSize =
         file->m_TextureHeader.width * file->m_TextureHeader.height;  // 8bpp
+    break;
+
+  case DXGI_FORMAT_R16_UNORM:
+    DDSHeaderData.ddspf = DirectX::DDSPF_L16;
+    DDSHeaderData.pitchOrLinearSize =
+        file->m_TextureHeader.width * file->m_TextureHeader.height * 2;  // 16bpp
+    break;
+
+  case DXGI_FORMAT_R8G8_UNORM:
+    DDSHeaderData.ddspf = DirectX::DDSPF_A8L8;
+    DDSHeaderData.pitchOrLinearSize =
+        file->m_TextureHeader.width * file->m_TextureHeader.height * 2;  // 16bpp
     break;
 
   default:
