@@ -197,9 +197,6 @@ EErrorCode Archive::read(const char* fileName, bool testHashes)
       case TYPE_STARFIELD_LZ4_TEXTURE:
         offset = 36;
         break;
-      case TYPE_FALLOUT4NG_7:
-      case TYPE_FALLOUT4NG_8:
-        offset = 28;
       default:
         offset = 24;
       }
@@ -807,7 +804,7 @@ EErrorCode Archive::extractCompressed(File::Ptr file, std::ofstream& outFile) co
           unsigned char* chunk = new unsigned char[file->m_TextureChunks[i].packedSize];
           m_File.read(reinterpret_cast<char*>(chunk),
                       file->m_TextureChunks[i].packedSize);
-          if (m_Type == TYPE_STARFIELD_LZ4_TEXTURE || m_Type == TYPE_FALLOUT4NG_7 || m_Type == TYPE_FALLOUT4NG_8) {
+          if (m_Type == TYPE_STARFIELD_LZ4_TEXTURE) {
             char* unpackedChunk = new char[length];
             LZ4_decompress_safe(reinterpret_cast<char*>(chunk), unpackedChunk,
                                 file->m_TextureChunks[i].packedSize, length);
