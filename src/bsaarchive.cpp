@@ -79,6 +79,10 @@ ArchiveType Archive::typeFromID(BSAULong typeID)
     return TYPE_STARFIELD;
   case 0x03:
     return TYPE_STARFIELD_LZ4_TEXTURE;
+  case 0x07:
+    return TYPE_FALLOUT4NG_7;
+  case 0x08:
+    return TYPE_FALLOUT4NG_8;
   default:
     throw data_invalid_exception(makeString("invalid type %d", typeID));
   }
@@ -101,6 +105,10 @@ BSAULong Archive::typeToID(ArchiveType type)
     return 0x02;
   case TYPE_STARFIELD_LZ4_TEXTURE:
     return 0x03;
+  case TYPE_FALLOUT4NG_7:
+    return 0x07;
+  case TYPE_FALLOUT4NG_8:
+    return 0x08;
   default:
     throw data_invalid_exception(makeString("invalid type %d", type));
   }
@@ -119,7 +127,8 @@ Archive::Header Archive::readHeader(std::fstream& infile)
   if (result.fileIdentifier != 0x00000100) {
     ArchiveType type = typeFromID(readType<BSAUInt>(infile));
     if (type == TYPE_FALLOUT4 || type == TYPE_STARFIELD ||
-        type == TYPE_STARFIELD_LZ4_TEXTURE) {
+        type == TYPE_STARFIELD_LZ4_TEXTURE || type == TYPE_FALLOUT4NG_7 ||
+        type == TYPE_FALLOUT4NG_8) {
       result.type = type;
       infile.read(result.archType, 4);
       result.archType[4]     = '\0';
@@ -163,7 +172,8 @@ EErrorCode Archive::read(const char* fileName, bool testHashes)
     m_ArchiveFlags = header.archiveFlags;
     m_Type         = header.type;
     if (m_Type == TYPE_FALLOUT4 || m_Type == TYPE_STARFIELD ||
-        m_Type == TYPE_STARFIELD_LZ4_TEXTURE) {
+        m_Type == TYPE_STARFIELD_LZ4_TEXTURE || m_Type == TYPE_FALLOUT4NG_7 ||
+        m_Type == TYPE_FALLOUT4NG_8) {
       std::vector<Folder::Ptr> folders;
 
       m_File.seekg(header.nameTableOffset);
@@ -632,7 +642,8 @@ EErrorCode Archive::extractDirect(File::Ptr file, std::ofstream& outFile) const
   m_File.seekg(static_cast<std::ifstream::pos_type>(file->m_DataOffset), std::ios::beg);
 
   if (m_Type == TYPE_FALLOUT4 || m_Type == TYPE_STARFIELD ||
-      m_Type == TYPE_STARFIELD_LZ4_TEXTURE) {
+      m_Type == TYPE_STARFIELD_LZ4_TEXTURE || m_Type == TYPE_FALLOUT4NG_7 ||
+      m_Type == TYPE_FALLOUT4NG_8) {
     if (!file->m_TextureChunks.size()) {
       BSAULong size = file->m_UncompressedFileSize;
       std::unique_ptr<char[]> buffer(new char[size]);
@@ -756,7 +767,8 @@ EErrorCode Archive::extractCompressed(File::Ptr file, std::ofstream& outFile) co
   m_File.seekg(static_cast<std::ifstream::pos_type>(file->m_DataOffset), std::ios::beg);
 
   if (m_Type == TYPE_FALLOUT4 || m_Type == TYPE_STARFIELD ||
-      m_Type == TYPE_STARFIELD_LZ4_TEXTURE) {
+      m_Type == TYPE_STARFIELD_LZ4_TEXTURE || m_Type == TYPE_FALLOUT4NG_7 ||
+      m_Type == TYPE_FALLOUT4NG_8) {
     if (!file->m_TextureChunks.size()) {
       BSAULong inSize = file->m_FileSize;
       std::unique_ptr<unsigned char[]> inBuffer(new unsigned char[inSize]);
@@ -897,7 +909,8 @@ void Archive::readFiles(std::queue<FileInfo>& queue, boost::mutex& mutex,
 
     m_File.seekg(fileInfo.file->m_DataOffset);
     if (m_Type != TYPE_FALLOUT4 && m_Type != TYPE_STARFIELD &&
-        m_Type != TYPE_STARFIELD_LZ4_TEXTURE) {
+        m_Type != TYPE_STARFIELD_LZ4_TEXTURE && m_Type != TYPE_FALLOUT4NG_7 &&
+        m_Type != TYPE_FALLOUT4NG_8) {
       if (namePrefixed()) {
         std::string fullName = readBString(m_File);
         if (size <= fullName.length()) {
@@ -937,7 +950,7 @@ void Archive::readFiles(std::queue<FileInfo>& queue, boost::mutex& mutex,
           if (fileInfo.file->m_TextureChunks[i].packedSize > 0) {
             char* chunk = new char[fileInfo.file->m_TextureChunks[i].packedSize];
             m_File.read(chunk, fileInfo.file->m_TextureChunks[i].packedSize);
-            if (m_Type == TYPE_FALLOUT4 || m_Type == TYPE_STARFIELD) {
+            if (m_Type == TYPE_FALLOUT4 || m_Type == TYPE_STARFIELD || m_Type == TYPE_FALLOUT4NG_7 || m_Type == TYPE_FALLOUT4NG_8) {
               EErrorCode result = ERROR_NONE;
               try {
                 boost::shared_array<unsigned char> unpackedChunk = decompress(
@@ -1028,7 +1041,8 @@ void Archive::extractFiles(const std::string& targetDirectory,
     }
 
     if (m_Type != TYPE_FALLOUT4 && m_Type != TYPE_STARFIELD &&
-        m_Type != TYPE_STARFIELD_LZ4_TEXTURE) {
+        m_Type != TYPE_STARFIELD_LZ4_TEXTURE && m_Type != TYPE_FALLOUT4NG_7 &&
+        m_Type != TYPE_FALLOUT4NG_8) {
       // BSA extraction
       if (compressed(fileInfo.file)) {
         // Decompress data
@@ -1195,7 +1209,7 @@ EErrorCode Archive::extractAll(
 
 bool Archive::compressed(const File::Ptr& file) const
 {
-  if (m_Type != TYPE_FALLOUT4)
+  if (m_Type != TYPE_FALLOUT4 && m_Type != TYPE_FALLOUT4NG_7 && m_Type != TYPE_FALLOUT4NG_8)
     return file->compressToggled() ^ defaultCompressed();
   return (file->m_FileSize > 0);
 }
