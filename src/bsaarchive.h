@@ -21,6 +21,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #ifndef BSA_ARCHIVE_H
 #define BSA_ARCHIVE_H
 
+#include "dxgiformat.h"
 #include "DDS.h"
 #include "bsafolder.h"
 #include "bsatypes.h"
