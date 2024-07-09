@@ -18,21 +18,24 @@ License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "bsaexception.h"
-#include <cstdarg>
-#include <stdio.h>
+#ifndef ERRORCODES_H
+#define ERRORCODES_H
 
-#pragma warning(disable : 4996)
-
-std::string makeString(const char* format, ...)
+namespace BSA
 {
-  va_list argList;
-  va_start(argList, format);
-  char buffer[1024];
-  vsnprintf(buffer, 1024, format, argList);
-  return std::string(buffer);
-}
 
-data_invalid_exception::data_invalid_exception(const std::string& message)
-    : m_Message(message)
-{}
+enum EErrorCode
+{
+  ERROR_NONE,
+  ERROR_INVALIDHASHES,
+  ERROR_FILENOTFOUND,
+  ERROR_INVALIDDATA,
+  ERROR_ACCESSFAILED,
+  ERROR_ZLIBINITFAILED,
+  ERROR_SOURCEFILEMISSING,
+  ERROR_CANCELED
+};
+
+};
+
+#endif  // ERRORCODES_H

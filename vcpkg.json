@@ -1,0 +1,8 @@
+{
+  "dependencies": [
+    "mo2-dds-header",
+    "zlib", "lz4",
+    "boost-thread",
+    "boost-interprocess"
+  ]
+}

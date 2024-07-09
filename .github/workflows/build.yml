@@ -1,0 +1,42 @@
+name: Build BSATK
+
+on:
+  push:
+    branches: master
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+env:
+  VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
+
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      # https://learn.microsoft.com/en-us/vcpkg/consume/binary-caching-github-actions-cache
+      - name: Export GitHub Actions cache environment variables
+        uses: actions/github-script@v7
+        with:
+          script: |
+            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+
+      - uses: actions/checkout@v4
+      - uses: lukka/run-vcpkg@v11
+
+      - name: Configure BSATK build
+        shell: pwsh
+        run: |
+          cmake --preset vs2022-windows "-DCMAKE_INSTALL_PREFIX=install"
+
+      - name: Build BSATK
+        run: cmake --build vsbuild --config RelWithDebInfo
+
+      - name: Install BSATK
+        run: cmake --install vsbuild --config RelWithDebInfo
+
+      - name: Upload BSATK artifact
+        uses: actions/upload-artifact@master
+        with:
+          name: BSATK
+          path: ./install

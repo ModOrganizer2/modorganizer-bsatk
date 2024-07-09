@@ -232,9 +232,9 @@ EErrorCode Archive::read(const char* fileName, bool testHashes)
           texHeader.height          = readType<BSAUShort>(m_File);
           texHeader.width           = readType<BSAUShort>(m_File);
           texHeader.mipCount        = readType<BSAUChar>(m_File);
-          texHeader.format          = static_cast<DXGI_FORMAT>(readType<BSAUChar>(m_File));
-          texHeader.isCubemap       = readType<bool>(m_File);
-          texHeader.unknown2        = readType<BSAUChar>(m_File);
+          texHeader.format    = static_cast<DXGI_FORMAT>(readType<BSAUChar>(m_File));
+          texHeader.isCubemap = readType<bool>(m_File);
+          texHeader.unknown2  = readType<BSAUChar>(m_File);
           std::vector<FO4TextureChunk> chunks;
           for (unsigned int j = 0; j < texHeader.chunkNumber; ++j) {
             FO4TextureChunk chunk;
@@ -707,10 +707,10 @@ EErrorCode Archive::extractDirect(File::Ptr file, std::ofstream& outFile) const
   return result;
 }
 
-boost::shared_array<unsigned char> Archive::decompress(unsigned char* inBuffer,
-                                                       BSAULong inSize,
-                                                       EErrorCode& result,
-                                                       BSAULong& outSize)
+std::shared_ptr<unsigned char[]> Archive::decompress(unsigned char* inBuffer,
+                                                     BSAULong inSize,
+                                                     EErrorCode& result,
+                                                     BSAULong& outSize)
 {
   if (outSize == 0) {
     memcpy(&outSize, inBuffer, sizeof(BSAULong));
@@ -719,10 +719,10 @@ boost::shared_array<unsigned char> Archive::decompress(unsigned char* inBuffer,
   }
 
   if ((inSize == 0) || (outSize == 0)) {
-    return boost::shared_array<unsigned char>();
+    return std::shared_ptr<unsigned char[]>();
   }
 
-  boost::shared_array<unsigned char> outBuffer(new unsigned char[outSize]);
+  std::shared_ptr<unsigned char[]> outBuffer(new unsigned char[outSize]);
 
   z_stream stream;
   try {
@@ -734,7 +734,7 @@ boost::shared_array<unsigned char> Archive::decompress(unsigned char* inBuffer,
     int zlibRet     = inflateInit2(&stream, 15 + 32);
     if (zlibRet != Z_OK) {
       result = ERROR_ZLIBINITFAILED;
-      return boost::shared_array<unsigned char>();
+      return std::shared_ptr<unsigned char[]>();
     }
 
     do {
@@ -751,7 +751,7 @@ boost::shared_array<unsigned char> Archive::decompress(unsigned char* inBuffer,
   } catch (const std::exception&) {
     result = ERROR_INVALIDDATA;
     inflateEnd(&stream);
-    return boost::shared_array<unsigned char>();
+    return std::shared_ptr<unsigned char[]>();
   }
 }
 
@@ -774,7 +774,7 @@ EErrorCode Archive::extractCompressed(File::Ptr file, std::ofstream& outFile) co
       std::unique_ptr<unsigned char[]> inBuffer(new unsigned char[inSize]);
       m_File.read(reinterpret_cast<char*>(inBuffer.get()), inSize);
       BSAULong length = file->m_UncompressedFileSize;
-      boost::shared_array<unsigned char> buffer =
+      std::shared_ptr<unsigned char[]> buffer =
           decompress(inBuffer.get(), inSize, result, length);
       if (result == ERROR_NONE) {
         outFile.write(reinterpret_cast<char*>(buffer.get()), length);
@@ -811,7 +811,7 @@ EErrorCode Archive::extractCompressed(File::Ptr file, std::ofstream& outFile) co
             outFile.write(unpackedChunk, length);
             delete[] unpackedChunk;
           } else {
-            boost::shared_array<unsigned char> unpackedChunk =
+            std::shared_ptr<unsigned char[]> unpackedChunk =
                 decompress(chunk, file->m_TextureChunks[i].packedSize, result, length);
             if (result == ERROR_NONE) {
               outFile.write(reinterpret_cast<char*>(unpackedChunk.get()), length);
@@ -865,7 +865,7 @@ EErrorCode Archive::extractCompressed(File::Ptr file, std::ofstream& outFile) co
     std::unique_ptr<unsigned char[]> inBuffer(new unsigned char[inSize]);
     m_File.read(reinterpret_cast<char*>(inBuffer.get()), inSize);
     BSAULong length = 0UL;
-    boost::shared_array<unsigned char> buffer =
+    std::shared_ptr<unsigned char[]> buffer =
         decompress(inBuffer.get(), inSize, result, length);
     if (result == ERROR_NONE) {
       outFile.write(reinterpret_cast<char*>(buffer.get()), length);
@@ -925,7 +925,7 @@ void Archive::readFiles(std::queue<FileInfo>& queue, boost::mutex& mutex,
       }
       if (!fileInfo.file->m_TextureChunks.size()) {
         fileInfo.data =
-            std::make_pair(boost::shared_array<unsigned char>(new unsigned char[size]),
+            std::make_pair(std::shared_ptr<unsigned char[]>(new unsigned char[size]),
                            static_cast<BSAULong>(size));
         m_File.read(reinterpret_cast<char*>(fileInfo.data.first.get()), size);
       }
@@ -934,7 +934,7 @@ void Archive::readFiles(std::queue<FileInfo>& queue, boost::mutex& mutex,
         if (size == 0)
           size = fileInfo.file->m_UncompressedFileSize;
         fileInfo.data =
-            std::make_pair(boost::shared_array<unsigned char>(new unsigned char[size]),
+            std::make_pair(std::shared_ptr<unsigned char[]>(new unsigned char[size]),
                            static_cast<BSAULong>(size));
         m_File.read(reinterpret_cast<char*>(fileInfo.data.first.get()), size);
       } else {
@@ -950,10 +950,11 @@ void Archive::readFiles(std::queue<FileInfo>& queue, boost::mutex& mutex,
           if (fileInfo.file->m_TextureChunks[i].packedSize > 0) {
             char* chunk = new char[fileInfo.file->m_TextureChunks[i].packedSize];
             m_File.read(chunk, fileInfo.file->m_TextureChunks[i].packedSize);
-            if (m_Type == TYPE_FALLOUT4 || m_Type == TYPE_STARFIELD || m_Type == TYPE_FALLOUT4NG_7 || m_Type == TYPE_FALLOUT4NG_8) {
+            if (m_Type == TYPE_FALLOUT4 || m_Type == TYPE_STARFIELD ||
+                m_Type == TYPE_FALLOUT4NG_7 || m_Type == TYPE_FALLOUT4NG_8) {
               EErrorCode result = ERROR_NONE;
               try {
-                boost::shared_array<unsigned char> unpackedChunk = decompress(
+                std::shared_ptr<unsigned char[]> unpackedChunk = decompress(
                     reinterpret_cast<unsigned char*>(chunk),
                     fileInfo.file->m_TextureChunks[i].packedSize, result, length);
                 memcpy(chunkData + currentPos,
@@ -981,7 +982,7 @@ void Archive::readFiles(std::queue<FileInfo>& queue, boost::mutex& mutex,
           currentPos += length;
         }
         fileInfo.file->m_FileSize = 0;
-        fileInfo.data             = std::make_pair(boost::shared_array<unsigned char>(
+        fileInfo.data             = std::make_pair(std::shared_ptr<unsigned char[]>(
                                            reinterpret_cast<unsigned char*>(chunkData)),
                                                    static_cast<BSAULong>(totalSize));
       }
@@ -1051,7 +1052,7 @@ void Archive::extractFiles(const std::string& targetDirectory,
           EErrorCode result = ERROR_NONE;
           try {
             BSAULong length = 0UL;
-            boost::shared_array<unsigned char> buffer =
+            std::shared_ptr<unsigned char[]> buffer =
                 decompress(dataBuffer.first.get(), dataBuffer.second, result, length);
             if (buffer.get() != nullptr) {
               outputFile.write(reinterpret_cast<char*>(buffer.get()), length);
@@ -1117,7 +1118,7 @@ void Archive::extractFiles(const std::string& targetDirectory,
         BSAULong length = fileInfo.file->m_UncompressedFileSize;
         if (fileInfo.file->m_FileSize > 0 && !fileInfo.file->m_TextureChunks.size()) {
           BSAULong length = fileInfo.file->m_UncompressedFileSize;
-          boost::shared_array<unsigned char> buffer =
+          std::shared_ptr<unsigned char[]> buffer =
               decompress(dataBuffer.first.get(), dataBuffer.second, result, length);
           if (buffer.get() != nullptr) {
             outputFile.write(reinterpret_cast<char*>(buffer.get()), length);
@@ -1151,7 +1152,7 @@ void Archive::createFolders(const std::string& targetDirectory, Folder::Ptr fold
 
 EErrorCode Archive::extractAll(
     const char* outputDirectory,
-    const boost::function<bool(int value, std::string fileName)>& progress,
+    const std::function<bool(int value, std::string fileName)>& progress,
     bool overwrite)
 {
 #pragma message("report errors")
@@ -1209,7 +1210,8 @@ EErrorCode Archive::extractAll(
 
 bool Archive::compressed(const File::Ptr& file) const
 {
-  if (m_Type != TYPE_FALLOUT4 && m_Type != TYPE_FALLOUT4NG_7 && m_Type != TYPE_FALLOUT4NG_8)
+  if (m_Type != TYPE_FALLOUT4 && m_Type != TYPE_FALLOUT4NG_7 &&
+      m_Type != TYPE_FALLOUT4NG_8)
     return file->compressToggled() ^ defaultCompressed();
   return (file->m_FileSize > 0);
 }

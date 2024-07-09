@@ -18,21 +18,34 @@ License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "bsaexception.h"
-#include <cstdarg>
-#include <stdio.h>
+#ifndef BSAEXCEPTION_H
+#define BSAEXCEPTION_H
 
-#pragma warning(disable : 4996)
+#include <string>
 
-std::string makeString(const char* format, ...)
+/**
+ * construct a string from a printf-style format
+ * @param format printf-style format to create the string from
+ * @param ... variable parameter list
+ * @return the constructed string
+ */
+std::string makeString(const char* format, ...);
+
+/**
+ * custom exception to be thrown when invalid data is encountered
+ */
+class data_invalid_exception : public std::exception
 {
-  va_list argList;
-  va_start(argList, format);
-  char buffer[1024];
-  vsnprintf(buffer, 1024, format, argList);
-  return std::string(buffer);
-}
 
-data_invalid_exception::data_invalid_exception(const std::string& message)
-    : m_Message(message)
-{}
+public:
+  explicit data_invalid_exception(const std::string& message);
+
+  virtual ~data_invalid_exception() throw() {}
+
+  virtual const char* what() const throw() { return m_Message.c_str(); }
+
+private:
+  std::string m_Message;
+};
+
+#endif  // BSAEXCEPTION_H
