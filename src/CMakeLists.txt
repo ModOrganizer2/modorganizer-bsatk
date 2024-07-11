@@ -4,5 +4,5 @@ add_library(bsatk STATIC)
 mo2_configure_library(bsatk
     WARNINGS OFF PERMISSIVE ON
     PUBLIC_DEPENDS boost boost::thread
-    PRIVATE_DEPENDS zlib lz4)
+    PRIVATE_DEPENDS DirectXTex zlib lz4)
 mo2_install_target(bsatk)

@@ -21,6 +21,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #ifndef BSATYPES_H
 #define BSATYPES_H
 
+#include "dxgiformat.h"
 #include "DDS.h"
 #include "bsaexception.h"
 #include <fstream>
