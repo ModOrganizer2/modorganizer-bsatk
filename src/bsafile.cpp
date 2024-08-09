@@ -19,14 +19,16 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
 #include "bsafile.h"
-#include "bsaexception.h"
-#include "bsafolder.h"
-#include "filehash.h"
+
 #include <algorithm>
 #include <climits>
 #include <cstring>
 #include <memory>
 #include <stdexcept>
+
+#include "bsaexception.h"
+#include "bsafolder.h"
+#include "filehash.h"
 
 using std::fstream;
 using std::ifstream;

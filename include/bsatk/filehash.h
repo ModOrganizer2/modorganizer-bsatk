@@ -18,22 +18,13 @@ License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "bsaexception.h"
+#ifndef FILEHASH_H
+#define FILEHASH_H
 
-#include <cstdarg>
-#include <cstdio>
+#include <string>
 
-#pragma warning(disable : 4996)
+#include "bsatypes.h"
 
-std::string makeString(const char* format, ...)
-{
-  va_list argList;
-  va_start(argList, format);
-  char buffer[1024];
-  vsnprintf(buffer, 1024, format, argList);
-  return std::string(buffer);
-}
+BSAHash calculateBSAHash(const std::string& fileName);
 
-data_invalid_exception::data_invalid_exception(const std::string& message)
-    : m_Message(message)
-{}
+#endif  // FILEHASH_H
