@@ -43,7 +43,7 @@ if (MSVC)
 	target_compile_options(bsatk
 		PRIVATE
 		"/MP"
-		"/Wall"
+		"/W4"
 		"/external:anglebrackets"
 		"/external:W0"
 	)

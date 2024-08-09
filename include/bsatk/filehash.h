@@ -21,8 +21,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #ifndef FILEHASH_H
 #define FILEHASH_H
 
-#include "bsatypes.h"
 #include <string>
+
+#include "bsatypes.h"
 
 BSAHash calculateBSAHash(const std::string& fileName);
 

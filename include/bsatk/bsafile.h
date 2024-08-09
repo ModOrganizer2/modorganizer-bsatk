@@ -21,11 +21,12 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #ifndef BSAFILE_H
 #define BSAFILE_H
 
-#include "errorcodes.h"
-#include "filehash.h"
 #include <fstream>
 #include <memory>
 #include <vector>
+
+#include "errorcodes.h"
+#include "filehash.h"
 
 namespace BSA
 {

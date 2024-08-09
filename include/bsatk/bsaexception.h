@@ -40,9 +40,9 @@ class data_invalid_exception : public std::exception
 public:
   explicit data_invalid_exception(const std::string& message);
 
-  virtual ~data_invalid_exception() throw() {}
+  virtual ~data_invalid_exception() noexcept {}
 
-  virtual const char* what() const throw() { return m_Message.c_str(); }
+  virtual const char* what() const noexcept { return m_Message.c_str(); }
 
 private:
   std::string m_Message;

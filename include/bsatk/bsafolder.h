@@ -21,12 +21,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #ifndef BSAFOLDER_H
 #define BSAFOLDER_H
 
-#include "bsafile.h"
-#include "bsatypes.h"
-#include "errorcodes.h"
 #include <memory>
 #include <string>
 #include <vector>
+
+#include "bsafile.h"
+#include "bsatypes.h"
+#include "errorcodes.h"
 
 namespace BSA
 {

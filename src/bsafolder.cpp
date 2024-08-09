@@ -18,13 +18,14 @@ License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include "bsafolder.h"
+
 #include <filesystem>
-#include <limits.h>
+#include <limits>
 
 #include "bsaarchive.h"
 #include "bsaexception.h"
 #include "bsafile.h"
-#include "bsafolder.h"
 
 using std::fstream;
 
@@ -35,7 +36,7 @@ Folder::Folder() : m_Parent(nullptr), m_Name()
 {
   m_NameHash  = calculateBSAHash(m_Name);
   m_FileCount = 0;
-  m_Offset    = ULONG_MAX;
+  m_Offset    = std::numeric_limits<unsigned long>::max();
 }
 
 Folder::Ptr Folder::readFolder(std::fstream& file, BSAUInt fileNamesLength,
