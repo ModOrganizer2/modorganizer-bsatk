@@ -174,7 +174,6 @@ EErrorCode Archive::read(const char* fileName, bool testHashes)
     if (m_Type == TYPE_FALLOUT4 || m_Type == TYPE_STARFIELD ||
         m_Type == TYPE_STARFIELD_LZ4_TEXTURE || m_Type == TYPE_FALLOUT4NG_7 ||
         m_Type == TYPE_FALLOUT4NG_8) {
-      std::vector<Folder::Ptr> folders;
 
       m_File.seekg(header.nameTableOffset);
 
@@ -215,8 +214,6 @@ EErrorCode Archive::read(const char* fileName, bool testHashes)
           std::vector<FO4TextureChunk> dummy;
           Folder::Ptr newDir = m_RootFolder->addFolderFromFile(
               fileNames[i], packedSize, offset, unpackedSize, {}, dummy);
-          if (std::find(folders.begin(), folders.end(), newDir) == folders.end())
-            folders.push_back(newDir);
           delete[] extension;
         }
       } else if (strcmp(header.archType, "DX10") == 0) {
@@ -232,9 +229,9 @@ EErrorCode Archive::read(const char* fileName, bool testHashes)
           texHeader.height          = readType<BSAUShort>(m_File);
           texHeader.width           = readType<BSAUShort>(m_File);
           texHeader.mipCount        = readType<BSAUChar>(m_File);
-          texHeader.format          = static_cast<DXGI_FORMAT>(readType<BSAUChar>(m_File));
-          texHeader.isCubemap       = readType<bool>(m_File);
-          texHeader.unknown2        = readType<BSAUChar>(m_File);
+          texHeader.format    = static_cast<DXGI_FORMAT>(readType<BSAUChar>(m_File));
+          texHeader.isCubemap = readType<bool>(m_File);
+          texHeader.unknown2  = readType<BSAUChar>(m_File);
           std::vector<FO4TextureChunk> chunks;
           for (unsigned int j = 0; j < texHeader.chunkNumber; ++j) {
             FO4TextureChunk chunk;
@@ -249,14 +246,11 @@ EErrorCode Archive::read(const char* fileName, bool testHashes)
           Folder::Ptr newDir = m_RootFolder->addFolderFromFile(
               fileNames[i], chunks[0].packedSize, chunks[0].offset,
               chunks[0].unpackedSize, texHeader, chunks);
-          if (std::find(folders.begin(), folders.end(), newDir) == folders.end())
-            folders.push_back(newDir);
         }
       }
 
       return ERROR_NONE;
     } else if (m_Type == TYPE_MORROWIND) {
-      std::vector<Folder::Ptr> folders;
       BSAUInt dataOffset = 12 + header.offset + header.fileCount * 8;
 
       std::vector<MorrowindFileOffset> fileSizeOffset(header.fileCount);
@@ -279,9 +273,6 @@ EErrorCode Archive::read(const char* fileName, bool testHashes)
         Folder::Ptr newDir = m_RootFolder->addFolderFromFile(
             filePath, fileSizeOffset[i].size, dataOffset + fileSizeOffset[i].offset, 0,
             {}, dummy);
-        if (std::find(folders.begin(), folders.end(), newDir) == folders.end())
-          folders.push_back(newDir);
-
         delete[] filePath;
       }
       return ERROR_NONE;
@@ -950,7 +941,8 @@ void Archive::readFiles(std::queue<FileInfo>& queue, boost::mutex& mutex,
           if (fileInfo.file->m_TextureChunks[i].packedSize > 0) {
             char* chunk = new char[fileInfo.file->m_TextureChunks[i].packedSize];
             m_File.read(chunk, fileInfo.file->m_TextureChunks[i].packedSize);
-            if (m_Type == TYPE_FALLOUT4 || m_Type == TYPE_STARFIELD || m_Type == TYPE_FALLOUT4NG_7 || m_Type == TYPE_FALLOUT4NG_8) {
+            if (m_Type == TYPE_FALLOUT4 || m_Type == TYPE_STARFIELD ||
+                m_Type == TYPE_FALLOUT4NG_7 || m_Type == TYPE_FALLOUT4NG_8) {
               EErrorCode result = ERROR_NONE;
               try {
                 boost::shared_array<unsigned char> unpackedChunk = decompress(
@@ -1209,7 +1201,8 @@ EErrorCode Archive::extractAll(
 
 bool Archive::compressed(const File::Ptr& file) const
 {
-  if (m_Type != TYPE_FALLOUT4 && m_Type != TYPE_FALLOUT4NG_7 && m_Type != TYPE_FALLOUT4NG_8)
+  if (m_Type != TYPE_FALLOUT4 && m_Type != TYPE_FALLOUT4NG_7 &&
+      m_Type != TYPE_FALLOUT4NG_8)
     return file->compressToggled() ^ defaultCompressed();
   return (file->m_FileSize > 0);
 }
