@@ -174,7 +174,6 @@ EErrorCode Archive::read(const char* fileName, bool testHashes)
     if (m_Type == TYPE_FALLOUT4 || m_Type == TYPE_STARFIELD ||
         m_Type == TYPE_STARFIELD_LZ4_TEXTURE || m_Type == TYPE_FALLOUT4NG_7 ||
         m_Type == TYPE_FALLOUT4NG_8) {
-      std::vector<Folder::Ptr> folders;
 
       m_File.seekg(header.nameTableOffset);
 
@@ -215,8 +214,6 @@ EErrorCode Archive::read(const char* fileName, bool testHashes)
           std::vector<FO4TextureChunk> dummy;
           Folder::Ptr newDir = m_RootFolder->addFolderFromFile(
               fileNames[i], packedSize, offset, unpackedSize, {}, dummy);
-          if (std::find(folders.begin(), folders.end(), newDir) == folders.end())
-            folders.push_back(newDir);
           delete[] extension;
         }
       } else if (strcmp(header.archType, "DX10") == 0) {
@@ -249,14 +246,11 @@ EErrorCode Archive::read(const char* fileName, bool testHashes)
           Folder::Ptr newDir = m_RootFolder->addFolderFromFile(
               fileNames[i], chunks[0].packedSize, chunks[0].offset,
               chunks[0].unpackedSize, texHeader, chunks);
-          if (std::find(folders.begin(), folders.end(), newDir) == folders.end())
-            folders.push_back(newDir);
         }
       }
 
       return ERROR_NONE;
     } else if (m_Type == TYPE_MORROWIND) {
-      std::vector<Folder::Ptr> folders;
       BSAUInt dataOffset = 12 + header.offset + header.fileCount * 8;
 
       std::vector<MorrowindFileOffset> fileSizeOffset(header.fileCount);
@@ -279,9 +273,6 @@ EErrorCode Archive::read(const char* fileName, bool testHashes)
         Folder::Ptr newDir = m_RootFolder->addFolderFromFile(
             filePath, fileSizeOffset[i].size, dataOffset + fileSizeOffset[i].offset, 0,
             {}, dummy);
-        if (std::find(folders.begin(), folders.end(), newDir) == folders.end())
-          folders.push_back(newDir);
-
         delete[] filePath;
       }
       return ERROR_NONE;

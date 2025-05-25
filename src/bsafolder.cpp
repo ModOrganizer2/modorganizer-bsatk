@@ -18,14 +18,13 @@ License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "bsafolder.h"
-
 #include <filesystem>
-#include <limits>
+#include <limits.h>
 
 #include "bsaarchive.h"
 #include "bsaexception.h"
 #include "bsafile.h"
+#include "bsafolder.h"
 
 using std::fstream;
 
@@ -36,7 +35,7 @@ Folder::Folder() : m_Parent(nullptr), m_Name()
 {
   m_NameHash  = calculateBSAHash(m_Name);
   m_FileCount = 0;
-  m_Offset    = std::numeric_limits<unsigned long>::max();
+  m_Offset    = ULONG_MAX;
 }
 
 Folder::Ptr Folder::readFolder(std::fstream& file, BSAUInt fileNamesLength,
@@ -139,76 +138,75 @@ std::string Folder::getFullPath() const
 
 void Folder::addFolderInt(Folder::Ptr folder)
 {
-  for (std::vector<Folder::Ptr>::iterator iter = m_SubFolders.begin();
-       iter != m_SubFolders.end(); ++iter) {
-    // for folder to be a subfolder of iter, the name of iter has to be the
-    // first path component of folders path and there has to be room left for a
-    // backslash and the name of folder itself
-    size_t nameLength = (*iter)->m_Name.length();
-    if ((folder->m_Name.length() > (*iter)->m_Name.length()) &&
-        (folder->m_Name.compare(0, (*iter)->m_Name.length(), (*iter)->m_Name) == 0) &&
-        ((folder->m_Name[nameLength] == '\\') || (folder->m_Name[nameLength] == '/'))) {
-      // remove the matched part of the path and recurse
-      folder->m_Name = folder->m_Name.substr((*iter)->m_Name.length() + 1);
-      (*iter)->addFolderInt(folder);
-      return;
-    }
+  std::filesystem::path path(folder->m_Name);
+  auto it              = path.begin();
+  std::string firstStr = it->string();
+  std::filesystem::path remaining;
+  for (++it; it != path.end(); ++it) {
+    remaining /= *it;
+  }
+
+  if (m_SubFoldersByName.contains(firstStr)) {
+    // remove the matched part of the path and recurse
+    folder->m_Name = remaining.string();
+    m_SubFoldersByName.at(firstStr)->addFolderInt(folder);
+    return;
   }
 
   // no subfolder matches, create one
-  std::string::size_type pos = folder->m_Name.find_first_of("\\/");
-  if (pos == std::string::npos) {
+  if (remaining.empty()) {
     // no more path components, add the new folder right here
     folder->m_Parent = this;
     m_SubFolders.push_back(folder);
+    m_SubFoldersByName[firstStr] = folder;
   } else {
     // add dummy folder for the next path component
     Folder::Ptr dummy(new Folder);
     dummy->m_Parent = this;
-    dummy->m_Name   = folder->m_Name.substr(0, pos);
-    folder->m_Name  = folder->m_Name.substr(pos + 1);
+    dummy->m_Name   = firstStr;
+    folder->m_Name  = remaining.string();
     dummy->addFolderInt(folder);
     m_SubFolders.push_back(dummy);
+    m_SubFoldersByName[firstStr] = dummy;
   }
 }
 
 Folder::Ptr Folder::addOrFindFolderInt(Folder* folder)
 {
-  for (std::vector<Folder::Ptr>::iterator iter = m_SubFolders.begin();
-       iter != m_SubFolders.end(); ++iter) {
-    // for folder to be a subfolder of iter, the name of iter has to be the
-    // first path component of folders path and there has to be room left for a
-    // backslash and the name of folder itself
-    size_t nameLength = (*iter)->m_Name.length();
-    if ((folder->m_Name.length() > (*iter)->m_Name.length()) &&
-        (folder->m_Name.compare(0, (*iter)->m_Name.length(), (*iter)->m_Name) == 0) &&
-        ((folder->m_Name[nameLength] == '\\') || (folder->m_Name[nameLength] == '/'))) {
+  std::filesystem::path path(folder->m_Name);
+  auto it              = path.begin();
+  std::string firstStr = it->string();
+  std::filesystem::path remaining;
+  for (++it; it != path.end(); ++it) {
+    remaining /= *it;
+  }
+
+  if (m_SubFoldersByName.contains(firstStr)) {
+    if (!remaining.empty()) {
       // remove the matched part of the path and recurse
-      folder->m_Name = folder->m_Name.substr((*iter)->m_Name.length() + 1);
-      return (*iter)->addOrFindFolderInt(folder);
+      folder->m_Name = remaining.string();
+      return m_SubFoldersByName.at(firstStr)->addOrFindFolderInt(folder);
     } else {
-      std::string::size_type pos = folder->m_Name.find_first_of("\\/");
-      if (pos == std::string::npos && (*iter)->m_Name.compare(folder->m_Name) == 0) {
-        return *iter;
-      }
+      return m_SubFoldersByName.at(firstStr);
     }
   }
 
   // no subfolder matches, create one
-  std::string::size_type pos = folder->m_Name.find_first_of("\\/");
-  if (pos == std::string::npos) {
+  if (remaining.empty()) {
     // no more path components, add the new folder right here
     folder->m_Parent = this;
     m_SubFolders.push_back(Folder::Ptr(folder));
+    m_SubFoldersByName[firstStr] = m_SubFolders.back();
     return m_SubFolders.back();
   } else {
     // add dummy folder for the next path component
     Folder::Ptr dummy(new Folder);
     dummy->m_Parent    = this;
-    dummy->m_Name      = folder->m_Name.substr(0, pos);
-    folder->m_Name     = folder->m_Name.substr(pos + 1);
+    dummy->m_Name      = firstStr;
+    folder->m_Name     = remaining.string();
     Folder::Ptr result = dummy->addOrFindFolderInt(folder);
     m_SubFolders.push_back(dummy);
+    m_SubFoldersByName[firstStr] = dummy;
     return result;
   }
 }

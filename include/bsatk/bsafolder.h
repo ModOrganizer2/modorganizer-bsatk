@@ -21,13 +21,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #ifndef BSAFOLDER_H
 #define BSAFOLDER_H
 
-#include <memory>
-#include <string>
-#include <vector>
-
 #include "bsafile.h"
 #include "bsatypes.h"
 #include "errorcodes.h"
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 namespace BSA
 {
@@ -159,6 +159,7 @@ private:
   BSAULong m_FileCount;
   BSAHash m_Offset;
   std::vector<Folder::Ptr> m_SubFolders;
+  std::unordered_map<std::string, Folder::Ptr> m_SubFoldersByName;
   std::vector<File::Ptr> m_Files;
 
   mutable BSAULong m_OffsetWrite;
