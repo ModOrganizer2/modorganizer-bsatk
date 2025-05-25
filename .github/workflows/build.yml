@@ -7,7 +7,7 @@ on:
     types: [opened, synchronize, reopened]
 
 env:
-  VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}/vcpkg_cache,readwrite
+  VCPKG_BINARY_SOURCES: clear;x-azblob,${{ vars.AZ_BLOB_VCPKG_URL }},${{ secrets.AZ_BLOB_SAS }},readwrite
 
 jobs:
   build:
@@ -22,23 +22,10 @@ jobs:
       # checkout
       - uses: actions/checkout@v4
 
-      - name: Restore vcpkg cache
-        uses: actions/cache/restore@v4
-        with:
-          path: ${{ github.workspace }}/vcpkg_cache
-          key: vcpkg-${{ hashFiles('vcpkg.json') }}
-          restore-keys: vcpkg-
-
       - name: Configure BSATK build
         shell: pwsh
         run: |
           cmake --preset vs2022-windows "-DCMAKE_INSTALL_PREFIX=install"
-
-      - name: Save vcpkg cache
-        uses: actions/cache/save@v4
-        with:
-          path: ${{ github.workspace }}/vcpkg_cache
-          key: vcpkg-${{ hashFiles('vcpkg.json') }}
 
       - name: Build BSATK
         run: cmake --build vsbuild --config RelWithDebInfo
