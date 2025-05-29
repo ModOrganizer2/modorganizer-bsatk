@@ -13,9 +13,13 @@ configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/config.cmake.in
   NO_CHECK_REQUIRED_COMPONENTS_MACRO
 )
 
+include(${CMAKE_CURRENT_SOURCE_DIR}/Version.cmake)
+set(BSATK_VERSION
+  ${BSATK_MAJOR_VERSION}.${BSATK_MINOR_VERSION}.${BSATK_PATCH_VERSION})
+
 write_basic_package_version_file(
   "${CMAKE_CURRENT_BINARY_DIR}/mo2-bsatk-config-version.cmake"
-  VERSION "1.3.12"
+  VERSION "${BSATK_VERSION}"
   COMPATIBILITY AnyNewerVersion
 )
 
