@@ -21,18 +21,18 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #ifndef BSA_ARCHIVE_H
 #define BSA_ARCHIVE_H
 
-#include "dxgiformat.h"
-#include "DDS.h"
+#include <functional>
+#include <memory>
+#include <queue>
+#include <vector>
+
+#include <dxgiformat.h>
+
+#include <DDS.h>
+
 #include "bsafolder.h"
 #include "bsatypes.h"
 #include "errorcodes.h"
-#include <queue>
-#include <vector>
-#ifndef Q_MOC_RUN
-#include <boost/function.hpp>
-#include <boost/shared_array.hpp>
-#endif  // Q_MOC_RUN
-
 namespace boost
 {
 class mutex;
@@ -52,9 +52,8 @@ class File;
  */
 class Archive
 {
-
 public:
-  typedef std::pair<boost::shared_array<unsigned char>, BSAULong> DataBuffer;
+  using DataBuffer = std::pair<std::shared_ptr<unsigned char[]>, BSAULong>;
 
 private:
   static const unsigned int FLAG_HASDIRNAMES       = 0x00000001;
@@ -129,7 +128,7 @@ public:
    */
   EErrorCode
   extractAll(const char* outputDirectory,
-             const boost::function<bool(int value, std::string fileName)>& progress,
+             const std::function<bool(int value, std::string fileName)>& progress,
              bool overwrite = true);
 
   /**
@@ -175,10 +174,10 @@ private:
 
   static ArchiveType typeFromID(BSAULong typeID);
 
-  static boost::shared_array<unsigned char> decompress(unsigned char* inBuffer,
-                                                       BSAULong inSize,
-                                                       EErrorCode& result,
-                                                       BSAULong& outSize);
+  static std::shared_ptr<unsigned char[]> decompress(unsigned char* inBuffer,
+                                                     BSAULong inSize,
+                                                     EErrorCode& result,
+                                                     BSAULong& outSize);
 
   BSAULong typeToID(ArchiveType type);
 
