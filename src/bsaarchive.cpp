@@ -973,9 +973,9 @@ void Archive::readFiles(std::queue<FileInfo>& queue, boost::mutex& mutex,
           currentPos += length;
         }
         fileInfo.file->m_FileSize = 0;
-        fileInfo.data             = std::make_pair(std::shared_ptr<unsigned char[]>(
+        fileInfo.data = std::make_pair(std::shared_ptr<unsigned char[]>(
                                            reinterpret_cast<unsigned char*>(chunkData)),
-                                                   static_cast<BSAULong>(totalSize));
+                                       static_cast<BSAULong>(totalSize));
       }
     }
 
