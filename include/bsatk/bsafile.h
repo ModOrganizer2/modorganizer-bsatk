@@ -99,7 +99,7 @@ private:
    * @param toggleCompressed if true, the default compression mode of the
    *                         archive is overwritten
    */
-  File(const std::string& name, const std::string& sourceFile, Folder* folder,
+  File(const std::string& name, const std::wstring& sourceFile, Folder* folder,
        bool toggleCompressed);
 
   /**
@@ -133,7 +133,7 @@ private:
   FO4TextureHeader m_TextureHeader = {};
   std::vector<FO4TextureChunk> m_TextureChunks;
 
-  std::string m_SourceFile;
+  std::wstring m_SourceFile;
   bool m_ToggleCompressedWrite;
   mutable BSAULong m_DataOffsetWrite;
 };

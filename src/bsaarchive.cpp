@@ -27,6 +27,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include <boost/interprocess/sync/scoped_lock.hpp>
 #include <boost/shared_array.hpp>
 #include <boost/thread.hpp>
+#include <codecvt>
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -155,7 +156,7 @@ Archive::Header Archive::readHeader(std::fstream& infile)
   return result;
 }
 
-EErrorCode Archive::read(const char* fileName, bool testHashes)
+EErrorCode Archive::read(const wchar_t* fileName, bool testHashes)
 {
   m_File.open(fileName, fstream::in | fstream::binary);
   if (!m_File.is_open()) {
@@ -335,10 +336,6 @@ BSAULong Archive::countCharacters(const std::vector<std::string>& list) const
   return static_cast<BSAULong>(sum);
 }
 
-#ifndef WIN32
-#define _stricmp strcasecmp
-#endif  // WIN32
-
 static bool endsWith(const std::string& fileName, const char* extension)
 {
   size_t endLength = strlen(extension);
@@ -411,7 +408,7 @@ void Archive::writeHeader(std::fstream& outfile, BSAULong fileFlags,
   writeType<BSAULong>(outfile, fileFlags);
 }
 
-EErrorCode Archive::write(const char* fileName)
+EErrorCode Archive::write(const wchar_t* fileName)
 {
   std::fstream outfile;
   outfile.open(fileName, fstream::out | fstream::binary);
@@ -866,9 +863,11 @@ EErrorCode Archive::extractCompressed(File::Ptr file, std::ofstream& outFile) co
   return result;
 }
 
-EErrorCode Archive::extract(File::Ptr file, const char* outputDirectory) const
+EErrorCode Archive::extract(File::Ptr file, const wchar_t* outputDirectory) const
 {
-  std::string fileName = makeString("%s/%s", outputDirectory, file->getName().c_str());
+  std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
+  std::wstring targetFile = converter.from_bytes(file->getName());
+  std::wstring fileName   = makeWString(L"%s/%s", outputDirectory, targetFile);
   std::ofstream outputFile(fileName.c_str(),
                            fstream::out | fstream::binary | fstream::trunc);
   if (!outputFile.is_open()) {
@@ -987,18 +986,19 @@ void Archive::readFiles(std::queue<FileInfo>& queue, boost::mutex& mutex,
   }
 }
 
-inline bool fileExists(const std::string& name)
+inline bool fileExists(const std::wstring& name)
 {
-  struct stat buffer;
-  return stat(name.c_str(), &buffer) != -1;
+  struct _stat buffer;
+  return _wstat(name.c_str(), &buffer) != -1;
 }
 
-void Archive::extractFiles(const std::string& targetDirectory,
+void Archive::extractFiles(const std::wstring& targetDirectory,
                            std::queue<FileInfo>& queue, boost::mutex& mutex,
                            boost::interprocess::interprocess_semaphore& bufferCount,
                            boost::interprocess::interprocess_semaphore& queueFree,
                            int totalFiles, bool overwrite, int& filesDone)
 {
+  std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
   for (int i = 0; i < totalFiles; ++i) {
     bufferCount.wait();
     if (boost::this_thread::interruption_requested()) {
@@ -1017,8 +1017,9 @@ void Archive::extractFiles(const std::string& targetDirectory,
 
     DataBuffer dataBuffer = fileInfo.data;
 
-    std::string fileName = makeString("%s\\%s", targetDirectory.c_str(),
-                                      fileInfo.file->getFilePath().c_str());
+    std::wstring targetFile = converter.from_bytes(fileInfo.file->getFilePath());
+    std::wstring fileName =
+        makeWString(L"%s\\%s", targetDirectory.c_str(), targetFile.c_str());
     if (!overwrite && fileExists(fileName)) {
       continue;
     }
@@ -1130,18 +1131,20 @@ void Archive::extractFiles(const std::string& targetDirectory,
   }
 }
 
-void Archive::createFolders(const std::string& targetDirectory, Folder::Ptr folder)
+void Archive::createFolders(const std::wstring& targetDirectory, Folder::Ptr folder)
 {
+  std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
   for (std::vector<Folder::Ptr>::iterator iter = folder->m_SubFolders.begin();
        iter != folder->m_SubFolders.end(); ++iter) {
-    std::string subDirName = targetDirectory + "\\" + (*iter)->getName();
-    ::CreateDirectoryA(subDirName.c_str(), nullptr);
+    std::wstring fileName   = converter.from_bytes((*iter)->getName());
+    std::wstring subDirName = targetDirectory + L"\\" + fileName;
+    ::CreateDirectoryW(subDirName.c_str(), nullptr);
     createFolders(subDirName, *iter);
   }
 }
 
 EErrorCode Archive::extractAll(
-    const char* outputDirectory,
+    const wchar_t* outputDirectory,
     const std::function<bool(int value, std::string fileName)>& progress,
     bool overwrite)
 {
@@ -1206,7 +1209,7 @@ bool Archive::compressed(const File::Ptr& file) const
   return (file->m_FileSize > 0);
 }
 
-File::Ptr Archive::createFile(const std::string& name, const std::string& sourceName,
+File::Ptr Archive::createFile(const std::string& name, const std::wstring& sourceName,
                               bool compressed)
 {
   return File::Ptr(

@@ -69,7 +69,7 @@ File::File(const std::string& name, Folder* folder, BSAULong fileSize,
     m_ToggleCompressed = true;
 }
 
-File::File(const std::string& name, const std::string& sourceFile, Folder* folder,
+File::File(const std::string& name, const std::wstring& sourceFile, Folder* folder,
            bool toggleCompressed)
     : m_Folder(folder), m_New(true), m_Name(name), m_FileSize(0),
       m_UncompressedFileSize(0), m_DataOffset(0), m_ToggleCompressed(toggleCompressed),

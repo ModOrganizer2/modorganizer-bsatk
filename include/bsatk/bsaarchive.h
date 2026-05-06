@@ -79,13 +79,13 @@ public:
    * file is valid. This can be skipped for performance reasons
    * @return ERROR_NONE on success or an error code
    */
-  EErrorCode read(const char* fileName, bool testHashes);
+  EErrorCode read(const wchar_t* fileName, bool testHashes);
   /**
    * write the archive to disc
    * @param fileName name of the file to write to
    * @return ERROR_NONE on success or an error code
    */
-  EErrorCode write(const char* fileName);
+  EErrorCode write(const wchar_t* fileName);
   /**
    * @brief close the archive
    */
@@ -111,7 +111,7 @@ public:
    *                        may be absolute or relative
    * @return ERROR_NONE on success or an error code
    */
-  EErrorCode extract(File::Ptr file, const char* outputDirectory) const;
+  EErrorCode extract(File::Ptr file, const wchar_t* outputDirectory) const;
   /**
    * @return archive flags
    */
@@ -127,7 +127,7 @@ public:
    * @return ERROR_NONE on success or an error code
    */
   EErrorCode
-  extractAll(const char* outputDirectory,
+  extractAll(const wchar_t* outputDirectory,
              const std::function<bool(int value, std::string fileName)>& progress,
              bool overwrite = true);
 
@@ -144,7 +144,7 @@ public:
    * @param compressed true if the file should be compressed (not supported yet!)
    * @return pointer to the new file
    */
-  File::Ptr createFile(const std::string& name, const std::string& sourceName,
+  File::Ptr createFile(const std::string& name, const std::wstring& sourceName,
                        bool compressed);
 
 private:
@@ -214,7 +214,7 @@ private:
   EErrorCode extractDirect(File::Ptr file, std::ofstream& outFile) const;
   EErrorCode extractCompressed(File::Ptr file, std::ofstream& outFile) const;
 
-  void createFolders(const std::string& targetDirectory, Folder::Ptr folder);
+  void createFolders(const std::wstring& targetDirectory, Folder::Ptr folder);
 
   void readFiles(std::queue<FileInfo>& queue, boost::mutex& mutex,
                  boost::interprocess::interprocess_semaphore& bufferCount,
@@ -222,7 +222,7 @@ private:
                  std::vector<File::Ptr>::iterator begin,
                  std::vector<File::Ptr>::iterator end);
 
-  void extractFiles(const std::string& targetDirectory, std::queue<FileInfo>& queue,
+  void extractFiles(const std::wstring& targetDirectory, std::queue<FileInfo>& queue,
                     boost::mutex& mutex,
                     boost::interprocess::interprocess_semaphore& bufferCount,
                     boost::interprocess::interprocess_semaphore& queueFree,

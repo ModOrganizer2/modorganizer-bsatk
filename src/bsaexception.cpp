@@ -34,6 +34,15 @@ std::string makeString(const char* format, ...)
   return std::string(buffer);
 }
 
+std::wstring makeWString(const wchar_t* format, ...)
+{
+  va_list argList;
+  va_start(argList, format);
+  wchar_t buffer[1024];
+  _vsnwprintf_s(buffer, 1024, _TRUNCATE, format, argList);
+  return std::wstring(buffer);
+}
+
 data_invalid_exception::data_invalid_exception(const std::string& message)
     : m_Message(message)
 {}
