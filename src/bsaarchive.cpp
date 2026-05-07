@@ -156,7 +156,7 @@ Archive::Header Archive::readHeader(std::fstream& infile)
   return result;
 }
 
-EErrorCode Archive::read(const std::filesystem::path fileName, bool testHashes)
+EErrorCode Archive::read(const std::filesystem::path& fileName, bool testHashes)
 {
   m_File.open(fileName, fstream::in | fstream::binary);
   if (!m_File.is_open()) {
@@ -408,7 +408,7 @@ void Archive::writeHeader(std::fstream& outfile, BSAULong fileFlags,
   writeType<BSAULong>(outfile, fileFlags);
 }
 
-EErrorCode Archive::write(const std::filesystem::path filePath)
+EErrorCode Archive::write(const std::filesystem::path& filePath)
 {
   std::fstream outfile;
   outfile.open(filePath, fstream::out | fstream::binary);
@@ -864,7 +864,7 @@ EErrorCode Archive::extractCompressed(File::Ptr file, std::ofstream& outFile) co
 }
 
 EErrorCode Archive::extract(File::Ptr file,
-                            const std::filesystem::path outputDirectory) const
+                            const std::filesystem::path& outputDirectory) const
 {
   std::filesystem::path targetPath = outputDirectory / file->getName();
   std::ofstream outputFile(targetPath, fstream::out | fstream::binary | fstream::trunc);
@@ -984,11 +984,6 @@ void Archive::readFiles(std::queue<FileInfo>& queue, boost::mutex& mutex,
   }
 }
 
-inline bool fileExists(const std::filesystem::path filePath)
-{
-  return std::filesystem::exists(filePath);
-}
-
 void Archive::extractFiles(const std::filesystem::path& targetDirectory,
                            std::queue<FileInfo>& queue, boost::mutex& mutex,
                            boost::interprocess::interprocess_semaphore& bufferCount,
@@ -1014,7 +1009,7 @@ void Archive::extractFiles(const std::filesystem::path& targetDirectory,
     DataBuffer dataBuffer = fileInfo.data;
 
     std::filesystem::path targetPath = targetDirectory / fileInfo.file->getFilePath();
-    if (!overwrite && fileExists(targetPath)) {
+    if (!overwrite && exists(targetPath)) {
       continue;
     }
 
@@ -1131,13 +1126,13 @@ void Archive::createFolders(const std::filesystem::path& targetDirectory,
   for (std::vector<Folder::Ptr>::iterator iter = folder->m_SubFolders.begin();
        iter != folder->m_SubFolders.end(); ++iter) {
     std::filesystem::path subDirPath = targetDirectory / (*iter)->getName();
-    ::CreateDirectoryW(subDirPath.wstring().c_str(), nullptr);
+    std::filesystem::create_directory(subDirPath);
     createFolders(subDirPath, *iter);
   }
 }
 
 EErrorCode Archive::extractAll(
-    const std::filesystem::path outputDirectory,
+    const std::filesystem::path& outputDirectory,
     const std::function<bool(int value, std::string fileName)>& progress,
     bool overwrite)
 {
@@ -1202,8 +1197,8 @@ bool Archive::compressed(const File::Ptr& file) const
   return (file->m_FileSize > 0);
 }
 
-File::Ptr Archive::createFile(const std::string& name, const std::wstring& sourceName,
-                              bool compressed)
+File::Ptr Archive::createFile(const std::string& name,
+                              const std::filesystem::path& sourceName, bool compressed)
 {
   return File::Ptr(
       new File(name, sourceName, nullptr, defaultCompressed() != compressed));

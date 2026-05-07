@@ -80,13 +80,13 @@ public:
    * file is valid. This can be skipped for performance reasons
    * @return ERROR_NONE on success or an error code
    */
-  EErrorCode read(const std::filesystem::path filePath, bool testHashes);
+  EErrorCode read(const std::filesystem::path& filePath, bool testHashes);
   /**
    * write the archive to disc
    * @param filePath path of the file to write to
    * @return ERROR_NONE on success or an error code
    */
-  EErrorCode write(const std::filesystem::path filePath);
+  EErrorCode write(const std::filesystem::path& filePath);
   /**
    * @brief close the archive
    */
@@ -112,7 +112,8 @@ public:
    *                        may be absolute or relative
    * @return ERROR_NONE on success or an error code
    */
-  EErrorCode extract(File::Ptr file, const std::filesystem::path outputDirectory) const;
+  EErrorCode extract(File::Ptr file,
+                     const std::filesystem::path& outputDirectory) const;
   /**
    * @return archive flags
    */
@@ -128,7 +129,7 @@ public:
    * @return ERROR_NONE on success or an error code
    */
   EErrorCode
-  extractAll(const std::filesystem::path outputDirectory,
+  extractAll(const std::filesystem::path& outputDirectory,
              const std::function<bool(int value, std::string fileName)>& progress,
              bool overwrite = true);
 
@@ -145,7 +146,7 @@ public:
    * @param compressed true if the file should be compressed (not supported yet!)
    * @return pointer to the new file
    */
-  File::Ptr createFile(const std::string& name, const std::wstring& sourceName,
+  File::Ptr createFile(const std::string& name, const std::filesystem::path& sourceName,
                        bool compressed);
 
 private:
@@ -181,11 +182,6 @@ private:
                                                      BSAULong& outSize);
 
   BSAULong typeToID(ArchiveType type);
-
-  //  Folder readFolderRecord(std::fstream& file);
-
-  //  EErrorCode extractDirect(const File &fileInfo, std::ofstream &outFile);
-  //  EErrorCode extractCompressed(const File &fileInfo, std::ofstream &outFile);
 
   bool defaultCompressed() const { return m_ArchiveFlags & FLAG_DEFAULTCOMPRESSED; }
   // starting with FO3 the bsa may prefix the file name to the file blob if archive flag
