@@ -67,7 +67,10 @@ public:
 
 private:
   // copy constructor not implemented
-  File(const File& reference);
+  File(const File& reference) = delete;
+
+  // assignment operator not implemented
+  File& operator=(const File& reference) = delete;
 
   /**
    * construct file from source archive
