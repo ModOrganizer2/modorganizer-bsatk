@@ -27,7 +27,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include <boost/interprocess/sync/scoped_lock.hpp>
 #include <boost/shared_array.hpp>
 #include <boost/thread.hpp>
-#include <codecvt>
 #include <cstring>
 #include <fstream>
 #include <iostream>

@@ -69,9 +69,6 @@ private:
   // copy constructor not implemented
   File(const File& reference);
 
-  // assignment operator not implemented
-  // File& operator=(const File& reference);
-
   /**
    * construct file from source archive
    * @param file a file read from
