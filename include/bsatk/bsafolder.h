@@ -99,7 +99,7 @@ private:
   Folder(const Folder& reference);
 
   // assignment operator - not implemented
-  Folder& operator=(const Folder& reference);
+  // Folder& operator=(const Folder& reference);
 
   /**
    * factory function to read a folder object from disc. This also reads part of the

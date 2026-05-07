@@ -156,7 +156,7 @@ Archive::Header Archive::readHeader(std::fstream& infile)
   return result;
 }
 
-EErrorCode Archive::read(const wchar_t* fileName, bool testHashes)
+EErrorCode Archive::read(const std::filesystem::path fileName, bool testHashes)
 {
   m_File.open(fileName, fstream::in | fstream::binary);
   if (!m_File.is_open()) {
@@ -408,10 +408,10 @@ void Archive::writeHeader(std::fstream& outfile, BSAULong fileFlags,
   writeType<BSAULong>(outfile, fileFlags);
 }
 
-EErrorCode Archive::write(const wchar_t* fileName)
+EErrorCode Archive::write(const std::filesystem::path filePath)
 {
   std::fstream outfile;
-  outfile.open(fileName, fstream::out | fstream::binary);
+  outfile.open(filePath, fstream::out | fstream::binary);
   if (!outfile.is_open()) {
     return ERROR_ACCESSFAILED;
   }
@@ -863,13 +863,11 @@ EErrorCode Archive::extractCompressed(File::Ptr file, std::ofstream& outFile) co
   return result;
 }
 
-EErrorCode Archive::extract(File::Ptr file, const wchar_t* outputDirectory) const
+EErrorCode Archive::extract(File::Ptr file,
+                            const std::filesystem::path outputDirectory) const
 {
-  std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
-  std::wstring targetFile = converter.from_bytes(file->getName());
-  std::wstring fileName   = makeWString(L"%s/%s", outputDirectory, targetFile);
-  std::ofstream outputFile(fileName.c_str(),
-                           fstream::out | fstream::binary | fstream::trunc);
+  std::filesystem::path targetPath = outputDirectory / file->getName();
+  std::ofstream outputFile(targetPath, fstream::out | fstream::binary | fstream::trunc);
   if (!outputFile.is_open()) {
     return ERROR_ACCESSFAILED;
   }
@@ -986,19 +984,17 @@ void Archive::readFiles(std::queue<FileInfo>& queue, boost::mutex& mutex,
   }
 }
 
-inline bool fileExists(const std::wstring& name)
+inline bool fileExists(const std::filesystem::path filePath)
 {
-  struct _stat buffer;
-  return _wstat(name.c_str(), &buffer) != -1;
+  return std::filesystem::exists(filePath);
 }
 
-void Archive::extractFiles(const std::wstring& targetDirectory,
+void Archive::extractFiles(const std::filesystem::path& targetDirectory,
                            std::queue<FileInfo>& queue, boost::mutex& mutex,
                            boost::interprocess::interprocess_semaphore& bufferCount,
                            boost::interprocess::interprocess_semaphore& queueFree,
                            int totalFiles, bool overwrite, int& filesDone)
 {
-  std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
   for (int i = 0; i < totalFiles; ++i) {
     bufferCount.wait();
     if (boost::this_thread::interruption_requested()) {
@@ -1017,14 +1013,12 @@ void Archive::extractFiles(const std::wstring& targetDirectory,
 
     DataBuffer dataBuffer = fileInfo.data;
 
-    std::wstring targetFile = converter.from_bytes(fileInfo.file->getFilePath());
-    std::wstring fileName =
-        makeWString(L"%s\\%s", targetDirectory.c_str(), targetFile.c_str());
-    if (!overwrite && fileExists(fileName)) {
+    std::filesystem::path targetPath = targetDirectory / fileInfo.file->getFilePath();
+    if (!overwrite && fileExists(targetPath)) {
       continue;
     }
 
-    std::ofstream outputFile(fileName.c_str(),
+    std::ofstream outputFile(targetPath,
                              fstream::out | fstream::binary | fstream::trunc);
 
     if (!outputFile.is_open()) {
@@ -1131,20 +1125,19 @@ void Archive::extractFiles(const std::wstring& targetDirectory,
   }
 }
 
-void Archive::createFolders(const std::wstring& targetDirectory, Folder::Ptr folder)
+void Archive::createFolders(const std::filesystem::path& targetDirectory,
+                            Folder::Ptr folder)
 {
-  std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
   for (std::vector<Folder::Ptr>::iterator iter = folder->m_SubFolders.begin();
        iter != folder->m_SubFolders.end(); ++iter) {
-    std::wstring fileName   = converter.from_bytes((*iter)->getName());
-    std::wstring subDirName = targetDirectory + L"\\" + fileName;
-    ::CreateDirectoryW(subDirName.c_str(), nullptr);
-    createFolders(subDirName, *iter);
+    std::filesystem::path subDirPath = targetDirectory / (*iter)->getName();
+    ::CreateDirectoryW(subDirPath.wstring().c_str(), nullptr);
+    createFolders(subDirPath, *iter);
   }
 }
 
 EErrorCode Archive::extractAll(
-    const wchar_t* outputDirectory,
+    const std::filesystem::path outputDirectory,
     const std::function<bool(int value, std::string fileName)>& progress,
     bool overwrite)
 {

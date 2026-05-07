@@ -32,14 +32,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 std::string makeString(const char* format, ...);
 
 /**
- * construct a wide string from a printf-style format
- * @param format printf-style format to create the string from
- * @param ... variable parameter list
- * @return the constructed string
- */
-std::wstring makeWString(const wchar_t* format, ...);
-
-/**
  * custom exception to be thrown when invalid data is encountered
  */
 class data_invalid_exception : public std::exception
