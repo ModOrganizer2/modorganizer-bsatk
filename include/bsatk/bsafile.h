@@ -21,6 +21,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #ifndef BSAFILE_H
 #define BSAFILE_H
 
+#include <filesystem>
 #include <fstream>
 #include <memory>
 #include <vector>
@@ -66,10 +67,10 @@ public:
 
 private:
   // copy constructor not implemented
-  File(const File& reference);
+  File(const File& reference) = delete;
 
   // assignment operator not implemented
-  File& operator=(const File& reference);
+  File& operator=(const File& reference) = delete;
 
   /**
    * construct file from source archive
@@ -99,7 +100,7 @@ private:
    * @param toggleCompressed if true, the default compression mode of the
    *                         archive is overwritten
    */
-  File(const std::string& name, const std::string& sourceFile, Folder* folder,
+  File(const std::string& name, const std::filesystem::path& sourceFile, Folder* folder,
        bool toggleCompressed);
 
   /**
@@ -133,7 +134,7 @@ private:
   FO4TextureHeader m_TextureHeader = {};
   std::vector<FO4TextureChunk> m_TextureChunks;
 
-  std::string m_SourceFile;
+  std::filesystem::path m_SourceFile;
   bool m_ToggleCompressedWrite;
   mutable BSAULong m_DataOffsetWrite;
 };

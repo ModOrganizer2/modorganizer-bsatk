@@ -96,10 +96,10 @@ private:
   Folder();
 
   // copy constructor not implemented
-  Folder(const Folder& reference);
+  Folder(const Folder& reference) = delete;
 
   // assignment operator - not implemented
-  Folder& operator=(const Folder& reference);
+  Folder& operator=(const Folder& reference) = delete;
 
   /**
    * factory function to read a folder object from disc. This also reads part of the

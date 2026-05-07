@@ -21,6 +21,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #ifndef BSA_ARCHIVE_H
 #define BSA_ARCHIVE_H
 
+#include <filesystem>
 #include <functional>
 #include <memory>
 #include <queue>
@@ -74,18 +75,18 @@ public:
   ~Archive();
   /**
    * read the archive from file
-   * @param fileName name of the file to read from
+   * @param fileName path of the file to read from
    * @param testHashes if true, the hashes of file names will be checked to ensure the
    * file is valid. This can be skipped for performance reasons
    * @return ERROR_NONE on success or an error code
    */
-  EErrorCode read(const char* fileName, bool testHashes);
+  EErrorCode read(const std::filesystem::path& filePath, bool testHashes);
   /**
    * write the archive to disc
-   * @param fileName name of the file to write to
+   * @param filePath path of the file to write to
    * @return ERROR_NONE on success or an error code
    */
-  EErrorCode write(const char* fileName);
+  EErrorCode write(const std::filesystem::path& filePath);
   /**
    * @brief close the archive
    */
@@ -107,11 +108,12 @@ public:
   /**
    * extract a file from the archive
    * @param file descriptor of the file to extract
-   * @param outputDirectory name of the directory to extract to.
+   * @param outputDirectory path of the directory to extract to.
    *                        may be absolute or relative
    * @return ERROR_NONE on success or an error code
    */
-  EErrorCode extract(File::Ptr file, const char* outputDirectory) const;
+  EErrorCode extract(File::Ptr file,
+                     const std::filesystem::path& outputDirectory) const;
   /**
    * @return archive flags
    */
@@ -127,7 +129,7 @@ public:
    * @return ERROR_NONE on success or an error code
    */
   EErrorCode
-  extractAll(const char* outputDirectory,
+  extractAll(const std::filesystem::path& outputDirectory,
              const std::function<bool(int value, std::string fileName)>& progress,
              bool overwrite = true);
 
@@ -144,7 +146,7 @@ public:
    * @param compressed true if the file should be compressed (not supported yet!)
    * @return pointer to the new file
    */
-  File::Ptr createFile(const std::string& name, const std::string& sourceName,
+  File::Ptr createFile(const std::string& name, const std::filesystem::path& sourceName,
                        bool compressed);
 
 private:
@@ -181,11 +183,6 @@ private:
 
   BSAULong typeToID(ArchiveType type);
 
-  Folder readFolderRecord(std::fstream& file);
-
-  //  EErrorCode extractDirect(const File &fileInfo, std::ofstream &outFile);
-  //  EErrorCode extractCompressed(const File &fileInfo, std::ofstream &outFile);
-
   bool defaultCompressed() const { return m_ArchiveFlags & FLAG_DEFAULTCOMPRESSED; }
   // starting with FO3 the bsa may prefix the file name to the file blob if archive flag
   // 0x100 is set
@@ -214,7 +211,7 @@ private:
   EErrorCode extractDirect(File::Ptr file, std::ofstream& outFile) const;
   EErrorCode extractCompressed(File::Ptr file, std::ofstream& outFile) const;
 
-  void createFolders(const std::string& targetDirectory, Folder::Ptr folder);
+  void createFolders(const std::filesystem::path& targetDirectory, Folder::Ptr folder);
 
   void readFiles(std::queue<FileInfo>& queue, boost::mutex& mutex,
                  boost::interprocess::interprocess_semaphore& bufferCount,
@@ -222,8 +219,8 @@ private:
                  std::vector<File::Ptr>::iterator begin,
                  std::vector<File::Ptr>::iterator end);
 
-  void extractFiles(const std::string& targetDirectory, std::queue<FileInfo>& queue,
-                    boost::mutex& mutex,
+  void extractFiles(const std::filesystem::path& targetDirectory,
+                    std::queue<FileInfo>& queue, boost::mutex& mutex,
                     boost::interprocess::interprocess_semaphore& bufferCount,
                     boost::interprocess::interprocess_semaphore& queueFree,
                     int totalFiles, bool overwrite, int& filesDone);
