@@ -57,11 +57,11 @@ void writeBString(fstream& file, const std::string& string)
 std::string readZString(fstream& file)
 {
   char buffer[FILENAME_MAX];
-  memset(buffer, '\0', FILENAME_MAX);
   if (!file.getline(buffer, FILENAME_MAX, '\0')) {
     throw data_invalid_exception("can't read from bsa");
   }
-  return std::string(buffer);
+  // gcount() includes the extracted '\0' delimiter, so the name is one shorter
+  return std::string(buffer, static_cast<size_t>(file.gcount()) - 1);
 }
 
 void writeZString(fstream& file, const std::string& string)
