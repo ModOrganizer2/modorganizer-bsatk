@@ -36,6 +36,6 @@ enum EErrorCode
   ERROR_CANCELED
 };
 
-};
+};  // namespace BSA
 
 #endif  // ERRORCODES_H
